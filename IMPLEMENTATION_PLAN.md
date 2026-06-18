@@ -14,8 +14,10 @@ Bygga en modern webbapp som laser SIE4-filer exporterade fran Fortnox och visar 
 - [x] 2025-filen innehaller rakenskapsar 2025 med jamforelse mot 2024.
 - [x] 2026-filen innehaller rakenskapsar 2026 med jamforelse mot 2025 och verifikationer till 2026-06-18.
 - [x] Planfil skapad.
-- [ ] GitHub-repo `claw-fluxweaver.github.io` skapat.
-- [ ] Lokal git-repo initialiserad och kopplad till GitHub.
+- [ ] GitHub-repo `claw-fluxweaver.github.io` skapat. Pausat tills vidare.
+- [x] Lokal git-repo initialiserad.
+- [x] Lokal appgrund skapad.
+- [x] Anvandarbeslut dokumenterade.
 
 ## Viktiga principer
 
@@ -156,35 +158,35 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 
 ### Fas 0: Repo och grund
 
-- [ ] Initiera git lokalt.
-- [ ] Skapa GitHub-repo `claw-fluxweaver.github.io`.
-- [ ] Lagg till `.gitignore` for SIE-filer och byggartefakter.
+- [x] Initiera git lokalt.
+- [ ] Skapa GitHub-repo `claw-fluxweaver.github.io`. Pausat, arbetar lokalt forst.
+- [x] Lagg till `.gitignore` for SIE-filer och byggartefakter.
 - [ ] Skapa Next.js/TypeScript-projekt.
 - [ ] Lagg in grundlayout och designsystem.
 
 ### Fas 1: SIE4-parser
 
-- [ ] Implementera tokenizer/parser for SIE4.
-- [ ] Hantera PC8-kodning.
-- [ ] Extrahera konton, rakenskapsar, saldo, resultat, verifikationer och transaktioner.
+- [x] Implementera tokenizer/parser for SIE4.
+- [x] Hantera PC8-kodning.
+- [x] Extrahera konton, rakenskapsar, saldo, resultat, verifikationer och transaktioner.
 - [ ] Skriva tester mot de tva befintliga filerna utan att checka in filerna.
 - [ ] Validera debet/kredit-balans per verifikation.
 
 ### Fas 2: Rapportmotor
 
-- [ ] Skapa normaliserad `AccountingDataset`.
-- [ ] Skapa kategori-konfiguration for kontogrupper.
-- [ ] Bygga manadsaggregering for resultatkonton.
-- [ ] Bygga likviditetsaggregering for bank/kassa-konton.
+- [x] Skapa normaliserad `AccountingDataset`.
+- [x] Skapa kategori-konfiguration for kontogrupper.
+- [x] Bygga manadsaggregering for resultatkonton.
+- [x] Bygga likviditetsaggregering for bank/kassa-konton.
 - [ ] Skapa gemensamt rapportkontrakt for nya rapporter.
 
 ### Fas 3: UI for MVP
 
-- [ ] Dashboard med KPI:er.
-- [ ] Manadsoversikt med jamforelse mot foregaende ar.
-- [ ] Kategori-vy med drilldown.
-- [ ] Likviditetsvy med faktisk/prognos-markering.
-- [ ] Filimport eller lokal seed-laddning for utveckling.
+- [x] Dashboard med KPI:er.
+- [x] Manadsoversikt med jamforelse mot foregaende ar.
+- [x] Kategori-vy, forsta version utan drilldown.
+- [x] Likviditetsvy med faktisk/prognos-markering.
+- [x] Lokal auto-inlasning fran `SIE4/`.
 
 ### Fas 4: Export
 
@@ -215,6 +217,13 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 ## Beslut som ar tagna tills vidare
 
 - SIE-filerna betraktas som privata och ska inte checkas in.
+- GitHub-repot ska vara privat nar det skapas.
+- Forsta versionen laser automatiskt fran lokala `SIE4/`.
+- Appen byggs for en organisation per instans.
+- Styrelsen ar primar malgrupp.
+- Likviditetsprognosen ska kunna justeras for kanda handelser.
+- UI ska profileras for Kronängs IF och kronangsif.se.
+- Excel-exporter ska vara motesfardiga men aven visa underliggande data.
 - Appen ska designas for att vara rapportmodulbaserad.
 - Forsta prioritet ar manadsoversikt, jamforelse foregaende ar, likviditet och Excel-export.
 - Hosting/access tas hojd for men implementeras inte i forsta skedet.
@@ -222,3 +231,5 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 ## Andringslogg
 
 - 2026-06-18: Forsta plan skapad efter inventering av SIE4-filer.
+- 2026-06-18: GitHub-sparet pausat efter anvandarbeslut; fortsatt arbete sker lokalt.
+- 2026-06-18: Lokal Next.js-app, SIE-parser, rapportmodell och forsta dashboard kopplad till SIE4-data.
