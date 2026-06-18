@@ -1,0 +1,14 @@
+.DS_Store
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+SIE4/
+*.xlsx
+*.xls
+*.csv
+*.tsv
