@@ -28,8 +28,9 @@ export default async function Home() {
   const currentCosts = monthlyRows.reduce((sum, row) => sum + row.costs, 0);
   const currentResult = currentIncome - currentCosts;
   const previousResult = monthlyRows.reduce((sum, row) => sum + row.previousYearResult, 0);
-  const maxBar = Math.max(...monthlyRows.flatMap((row) => [row.income, row.costs]), 1);
-  const actualMonths = monthlyRows.filter((row) => row.income !== 0 || row.costs !== 0).length;
+  const chartRows = monthlyRows.filter((row) => row.income !== 0 || row.costs !== 0);
+  const maxBar = Math.max(...chartRows.flatMap((row) => [row.income, row.costs]), 1);
+  const actualMonths = chartRows.length;
 
   return (
     <main className={styles.shell}>
@@ -123,8 +124,12 @@ export default async function Home() {
               </span>
             </div>
 
-            <div className={styles.chart} aria-label="Diagram över intäkter och kostnader">
-              {monthlyRows.map((row) => (
+            <div
+              className={styles.chart}
+              style={{ gridTemplateColumns: `repeat(${chartRows.length}, minmax(48px, 1fr))` }}
+              aria-label="Diagram över intäkter och kostnader"
+            >
+              {chartRows.map((row) => (
                 <div className={styles.month} key={row.month}>
                   <div className={styles.bars}>
                     <span
