@@ -29,6 +29,12 @@ const MONTH_LABELS = [
   "Dec"
 ];
 
+export type ComparisonMode = "fullYear" | "samePeriod";
+
+export function parseComparisonMode(value: string | string[] | undefined): ComparisonMode {
+  return value === "samePeriod" ? "samePeriod" : "fullYear";
+}
+
 function yearFromDate(date: string): number {
   return Number(date.slice(0, 4));
 }
@@ -43,6 +49,39 @@ function monthKey(year: number, month: number): string {
 
 function roundSek(value: number): number {
   return Math.round(value);
+}
+
+function latestVoucherDateForYear(dataset: AccountingDataset, selectedYear: number): string | undefined {
+  return dataset.vouchers
+    .filter((voucher) => yearFromDate(voucher.date) === selectedYear)
+    .map((voucher) => voucher.date)
+    .sort()
+    .at(-1);
+}
+
+export function comparisonCutoffDate(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  comparisonMode: ComparisonMode
+): string | undefined {
+  const latestDate = latestVoucherDateForYear(dataset, selectedYear);
+  if (!latestDate || comparisonMode === "fullYear") return undefined;
+  return `${selectedYear - 1}${latestDate.slice(4)}`;
+}
+
+export function comparisonModeLabel(comparisonMode: ComparisonMode): string {
+  return comparisonMode === "samePeriod" ? "Samma period" : "Hela föregående år";
+}
+
+export function formatSieDate(date: string): string {
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(4, 6));
+  const day = Number(date.slice(6, 8));
+  return new Intl.DateTimeFormat("sv-SE", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
 function uniqueVouchers(vouchers: Voucher[]): Voucher[] {
@@ -115,14 +154,17 @@ function classifyResultTransaction(transaction: Transaction): "income" | "cost" 
 
 export function buildMonthlyReport(
   dataset: AccountingDataset,
-  selectedYear: number
+  selectedYear: number,
+  comparisonMode: ComparisonMode = "fullYear"
 ): MonthlyReportRow[] {
   const current = new Map<string, { income: number; costs: number }>();
   const previous = new Map<string, { income: number; costs: number }>();
+  const previousCutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
 
   for (const voucher of dataset.vouchers) {
     const year = yearFromDate(voucher.date);
     if (year !== selectedYear && year !== selectedYear - 1) continue;
+    if (year === selectedYear - 1 && previousCutoff && voucher.date > previousCutoff) continue;
 
     const month = monthFromDate(voucher.date);
     const key = monthKey(year, month);
@@ -165,9 +207,11 @@ export function buildMonthlyReport(
 
 export function buildCategorySummary(
   dataset: AccountingDataset,
-  selectedYear: number
+  selectedYear: number,
+  comparisonMode: ComparisonMode = "fullYear"
 ): CategorySummary[] {
   const summary = new Map<string, CategorySummary>();
+  const previousCutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
 
   for (const category of ACCOUNT_CATEGORIES) {
     summary.set(category.id, {
@@ -181,6 +225,7 @@ export function buildCategorySummary(
   for (const voucher of dataset.vouchers) {
     const year = yearFromDate(voucher.date);
     if (year !== selectedYear && year !== selectedYear - 1) continue;
+    if (year === selectedYear - 1 && previousCutoff && voucher.date > previousCutoff) continue;
 
     for (const transaction of voucher.transactions) {
       if (!classifyResultTransaction(transaction)) continue;

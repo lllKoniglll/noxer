@@ -1,9 +1,14 @@
 import { BarChart3, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { ComparisonToggle } from "@/app/report-controls";
 import {
   buildMonthlyReport,
+  comparisonCutoffDate,
+  comparisonModeLabel,
+  formatSieDate,
   formatThousands,
   getAvailableYears,
-  loadAccountingDataset
+  loadAccountingDataset,
+  parseComparisonMode
 } from "@/lib/reports/accounting";
 import styles from "./page.module.css";
 
@@ -13,11 +18,20 @@ function percentChange(current: number, previous: number): string {
   return `${change >= 0 ? "+" : ""}${Math.round(change)}% mot föregående år`;
 }
 
-export default async function MonthlyReportPage() {
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function MonthlyReportPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const comparisonMode = parseComparisonMode(params?.comparison);
+  const comparisonQuery = `?comparison=${comparisonMode}`;
   const dataset = await loadAccountingDataset();
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
-  const monthlyRows = buildMonthlyReport(dataset, selectedYear);
+  const monthlyRows = buildMonthlyReport(dataset, selectedYear, comparisonMode);
+  const cutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
+  const comparisonLabel = comparisonModeLabel(comparisonMode);
   const currentIncome = monthlyRows.reduce((sum, row) => sum + row.income, 0);
   const currentCosts = monthlyRows.reduce((sum, row) => sum + row.costs, 0);
   const currentResult = currentIncome - currentCosts;
@@ -51,11 +65,11 @@ export default async function MonthlyReportPage() {
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
           </a>
-          <a href="/reports/liquidity">
+          <a href={`/reports/liquidity${comparisonQuery}`}>
             <LineChart size={18} aria-hidden="true" />
             Likviditet
           </a>
-          <a href="/reports/categories">
+          <a href={`/reports/categories${comparisonQuery}`}>
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
           </a>
@@ -72,6 +86,11 @@ export default async function MonthlyReportPage() {
             </span>
           </div>
           <div className={styles.actions}>
+            <ComparisonToggle
+              activeMode={comparisonMode}
+              basePath="/"
+              cutoffLabel={cutoff ? `Jämför t.o.m. ${formatSieDate(cutoff)}` : undefined}
+            />
             <button type="button" title="Exportera aktuell styrelsevy">
               <Download size={18} aria-hidden="true" />
               Excel
@@ -105,8 +124,8 @@ export default async function MonthlyReportPage() {
         <article className={styles.panel}>
           <div className={styles.panelHeader}>
             <div>
-              <span>Resultat per månad</span>
-              <h2>Intäkter och kostnader jämfört med {selectedYear - 1}</h2>
+            <span>Resultat per månad</span>
+              <h2>Intäkter och kostnader jämfört med {comparisonLabel.toLowerCase()}</h2>
             </div>
             <select aria-label="Välj år" defaultValue={selectedYear}>
               {years.map((year) => (

@@ -3,11 +3,19 @@ import {
   buildCashForecast,
   formatThousands,
   getAvailableYears,
-  loadAccountingDataset
+  loadAccountingDataset,
+  parseComparisonMode
 } from "@/lib/reports/accounting";
 import styles from "../../page.module.css";
 
-export default async function LiquidityReportPage() {
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function LiquidityReportPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const comparisonMode = parseComparisonMode(params?.comparison);
+  const comparisonQuery = `?comparison=${comparisonMode}`;
   const dataset = await loadAccountingDataset();
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
@@ -27,7 +35,7 @@ export default async function LiquidityReportPage() {
           </div>
         </div>
         <nav className={styles.nav}>
-          <a href="/">
+          <a href={`/${comparisonQuery}`}>
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
           </a>
@@ -35,7 +43,7 @@ export default async function LiquidityReportPage() {
             <LineChart size={18} aria-hidden="true" />
             Likviditet
           </a>
-          <a href="/reports/categories">
+          <a href={`/reports/categories${comparisonQuery}`}>
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
           </a>

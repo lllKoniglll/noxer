@@ -86,6 +86,7 @@
 }
 
 .actions {
+  align-items: flex-start;
   display: flex;
   gap: 10px;
 }
@@ -106,6 +107,46 @@
 .actions button:last-child {
   background: var(--accent);
   border-color: var(--accent);
+  color: #ffffff;
+}
+
+.comparisonControl {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.comparisonControl > span,
+.comparisonControl small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.comparisonControl > div {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  overflow: hidden;
+}
+
+.comparisonControl a {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 720;
+  min-height: 38px;
+  padding: 10px 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.comparisonControl a + a {
+  border-left: 1px solid var(--line);
+}
+
+.comparisonControl .selectedToggle {
+  background: var(--accent);
   color: #ffffff;
 }
 
@@ -439,6 +480,19 @@
 
   .actions {
     display: grid;
+  }
+
+  .comparisonControl {
+    justify-items: stretch;
+  }
+
+  .comparisonControl > div {
+    width: 100%;
+  }
+
+  .comparisonControl a {
+    flex: 1;
+    text-align: center;
   }
 
   .chart {

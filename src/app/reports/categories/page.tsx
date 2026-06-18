@@ -1,9 +1,14 @@
 import { BarChart3, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { ComparisonToggle } from "@/app/report-controls";
 import {
   buildCategorySummary,
+  comparisonCutoffDate,
+  comparisonModeLabel,
+  formatSieDate,
   formatThousands,
   getAvailableYears,
-  loadAccountingDataset
+  loadAccountingDataset,
+  parseComparisonMode
 } from "@/lib/reports/accounting";
 import styles from "../../page.module.css";
 
@@ -13,11 +18,20 @@ function percentChange(current: number, previous: number): string {
   return `${change >= 0 ? "+" : ""}${Math.round(change)}%`;
 }
 
-export default async function CategoriesReportPage() {
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function CategoriesReportPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const comparisonMode = parseComparisonMode(params?.comparison);
+  const comparisonQuery = `?comparison=${comparisonMode}`;
   const dataset = await loadAccountingDataset();
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
-  const categories = buildCategorySummary(dataset, selectedYear);
+  const categories = buildCategorySummary(dataset, selectedYear, comparisonMode);
+  const cutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
+  const comparisonLabel = comparisonModeLabel(comparisonMode);
 
   return (
     <main className={styles.shell}>
@@ -30,11 +44,11 @@ export default async function CategoriesReportPage() {
           </div>
         </div>
         <nav className={styles.nav}>
-          <a href="/">
+          <a href={`/${comparisonQuery}`}>
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
           </a>
-          <a href="/reports/liquidity">
+          <a href={`/reports/liquidity${comparisonQuery}`}>
             <LineChart size={18} aria-hidden="true" />
             Likviditet
           </a>
@@ -53,6 +67,11 @@ export default async function CategoriesReportPage() {
             <span className={styles.fileStatus}>Begripliga kontogrupper för styrelseuppföljning</span>
           </div>
           <div className={styles.actions}>
+            <ComparisonToggle
+              activeMode={comparisonMode}
+              basePath="/reports/categories"
+              cutoffLabel={cutoff ? `Jämför t.o.m. ${formatSieDate(cutoff)}` : undefined}
+            />
             <button type="button" title="Exportera kategorirapport">
               <Download size={18} aria-hidden="true" />
               Excel
@@ -64,7 +83,7 @@ export default async function CategoriesReportPage() {
           <div className={styles.panelHeader}>
             <div>
               <span>Kategorier</span>
-              <h2>Utfall jämfört med föregående år</h2>
+              <h2>Utfall jämfört med {comparisonLabel.toLowerCase()}</h2>
             </div>
           </div>
           <table className={styles.table}>
