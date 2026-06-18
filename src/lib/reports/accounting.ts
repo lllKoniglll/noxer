@@ -118,7 +118,7 @@ export function buildMonthlyReport(
   selectedYear: number
 ): MonthlyReportRow[] {
   const current = new Map<string, { income: number; costs: number }>();
-  const previous = new Map<string, { result: number }>();
+  const previous = new Map<string, { income: number; costs: number }>();
 
   for (const voucher of dataset.vouchers) {
     const year = yearFromDate(voucher.date);
@@ -137,8 +137,9 @@ export function buildMonthlyReport(
         if (kind === "cost") row.costs += transaction.amount;
         current.set(key, row);
       } else {
-        const row = previous.get(key) ?? { result: 0 };
-        row.result += kind === "income" ? -transaction.amount : -transaction.amount;
+        const row = previous.get(key) ?? { income: 0, costs: 0 };
+        if (kind === "income") row.income += -transaction.amount;
+        if (kind === "cost") row.costs += transaction.amount;
         previous.set(key, row);
       }
     }
@@ -147,7 +148,7 @@ export function buildMonthlyReport(
   return MONTH_LABELS.map((label, index) => {
     const month = index + 1;
     const row = current.get(monthKey(selectedYear, month)) ?? { income: 0, costs: 0 };
-    const previousRow = previous.get(monthKey(selectedYear - 1, month)) ?? { result: 0 };
+    const previousRow = previous.get(monthKey(selectedYear - 1, month)) ?? { income: 0, costs: 0 };
 
     return {
       month: String(month).padStart(2, "0"),
@@ -155,7 +156,9 @@ export function buildMonthlyReport(
       income: roundSek(row.income),
       costs: roundSek(row.costs),
       result: roundSek(row.income - row.costs),
-      previousYearResult: roundSek(previousRow.result)
+      previousYearIncome: roundSek(previousRow.income),
+      previousYearCosts: roundSek(previousRow.costs),
+      previousYearResult: roundSek(previousRow.income - previousRow.costs)
     };
   });
 }

@@ -1,7 +1,5 @@
 import { BarChart3, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import {
-  buildCashForecast,
-  buildCategorySummary,
   buildMonthlyReport,
   formatThousands,
   getAvailableYears,
@@ -15,22 +13,27 @@ function percentChange(current: number, previous: number): string {
   return `${change >= 0 ? "+" : ""}${Math.round(change)}% mot föregående år`;
 }
 
-export default async function Home() {
+export default async function MonthlyReportPage() {
   const dataset = await loadAccountingDataset();
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
   const monthlyRows = buildMonthlyReport(dataset, selectedYear);
-  const categories = buildCategorySummary(dataset, selectedYear).slice(0, 6);
-  const cashForecast = buildCashForecast(dataset, selectedYear);
-  const latestActualCash = [...cashForecast].reverse().find((point) => point.actual !== null)?.actual ?? 0;
-  const forecastEnd = [...cashForecast].reverse().find((point) => point.forecast !== null)?.forecast;
   const currentIncome = monthlyRows.reduce((sum, row) => sum + row.income, 0);
   const currentCosts = monthlyRows.reduce((sum, row) => sum + row.costs, 0);
   const currentResult = currentIncome - currentCosts;
-  const previousResult = monthlyRows.reduce((sum, row) => sum + row.previousYearResult, 0);
-  const chartRows = monthlyRows.filter((row) => row.income !== 0 || row.costs !== 0);
-  const maxBar = Math.max(...chartRows.flatMap((row) => [row.income, row.costs]), 1);
-  const actualMonths = chartRows.length;
+  const previousIncome = monthlyRows.reduce((sum, row) => sum + row.previousYearIncome, 0);
+  const previousCosts = monthlyRows.reduce((sum, row) => sum + row.previousYearCosts, 0);
+  const previousResult = previousIncome - previousCosts;
+  const maxBar = Math.max(
+    ...monthlyRows.flatMap((row) => [
+      row.income,
+      row.costs,
+      row.previousYearIncome,
+      row.previousYearCosts
+    ]),
+    1
+  );
+  const actualMonths = monthlyRows.filter((row) => row.income !== 0 || row.costs !== 0).length;
 
   return (
     <main className={styles.shell}>
@@ -44,15 +47,15 @@ export default async function Home() {
         </div>
 
         <nav className={styles.nav}>
-          <a className={styles.active} href="#overview">
+          <a className={styles.active} href="/">
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
           </a>
-          <a href="#cash">
+          <a href="/reports/liquidity">
             <LineChart size={18} aria-hidden="true" />
             Likviditet
           </a>
-          <a href="#comparison">
+          <a href="/reports/categories">
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
           </a>
@@ -63,7 +66,7 @@ export default async function Home() {
         <header className={styles.topbar}>
           <div>
             <p>{dataset.organizationName}</p>
-            <h1>Ekonomisk överblick {selectedYear}</h1>
+            <h1>Månadsöversikt {selectedYear}</h1>
             <span className={styles.fileStatus}>
               {dataset.files.length} SIE4-filer inlästa, senaste verifikation {dataset.latestVoucherDate}
             </span>
@@ -80,12 +83,12 @@ export default async function Home() {
           <article>
             <span>Intäkter hittills</span>
             <strong>{formatThousands(currentIncome)}</strong>
-            <small>{actualMonths} månader med utfall</small>
+            <small>{percentChange(currentIncome, previousIncome)}</small>
           </article>
           <article>
             <span>Kostnader hittills</span>
             <strong>{formatThousands(currentCosts)}</strong>
-            <small>{percentChange(currentCosts, currentCosts - previousResult)}</small>
+            <small>{percentChange(currentCosts, previousCosts)}</small>
           </article>
           <article>
             <span>Resultat</span>
@@ -93,123 +96,107 @@ export default async function Home() {
             <small>{percentChange(currentResult, previousResult)}</small>
           </article>
           <article>
-            <span>Likvida medel</span>
-            <strong>{formatThousands(latestActualCash)}</strong>
-            <small>Faktiskt till {dataset.latestVoucherDate}</small>
+            <span>Period</span>
+            <strong>{actualMonths}/12 mån</strong>
+            <small>Diagrammet visar hela året</small>
           </article>
         </section>
 
-        <section className={styles.grid}>
-          <article className={styles.panel} id="overview">
-            <div className={styles.panelHeader}>
-              <div>
-                <span>Resultat per månad</span>
-                <h2>Intäkter och kostnader</h2>
-              </div>
-              <select aria-label="Välj år" defaultValue={selectedYear}>
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year} mot {year - 1}
-                  </option>
-                ))}
-              </select>
+        <article className={styles.panel}>
+          <div className={styles.panelHeader}>
+            <div>
+              <span>Resultat per månad</span>
+              <h2>Intäkter och kostnader jämfört med {selectedYear - 1}</h2>
             </div>
-
-            <div className={styles.legend} aria-label="Diagramförklaring">
-              <span>
-                <i className={styles.incomeDot} /> Intäkter
-              </span>
-              <span>
-                <i className={styles.costDot} /> Kostnader
-              </span>
-            </div>
-
-            <div
-              className={styles.chart}
-              style={{ gridTemplateColumns: `repeat(${chartRows.length}, minmax(48px, 1fr))` }}
-              aria-label="Diagram över intäkter och kostnader"
-            >
-              {chartRows.map((row) => (
-                <div className={styles.month} key={row.month}>
-                  <div className={styles.bars}>
-                    <span
-                      style={{ height: `${Math.max((row.income / maxBar) * 100, 2)}%` }}
-                      className={styles.income}
-                    />
-                    <span
-                      style={{ height: `${Math.max((row.costs / maxBar) * 100, 2)}%` }}
-                      className={styles.cost}
-                    />
-                  </div>
-                  <strong>{row.label}</strong>
-                </div>
+            <select aria-label="Välj år" defaultValue={selectedYear}>
+              {years.map((year) => (
+                <option key={year} value={year}>
+                  {year} mot {year - 1}
+                </option>
               ))}
-            </div>
+            </select>
+          </div>
 
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Månad</th>
-                  <th>Intäkter</th>
-                  <th>Kostnader</th>
-                  <th>Resultat</th>
-                  <th>{selectedYear - 1}</th>
+          <div className={styles.legend} aria-label="Diagramförklaring">
+            <span>
+              <i className={styles.incomeDot} /> Intäkter {selectedYear}
+            </span>
+            <span>
+              <i className={styles.incomePreviousDot} /> Intäkter {selectedYear - 1}
+            </span>
+            <span>
+              <i className={styles.costDot} /> Kostnader {selectedYear}
+            </span>
+            <span>
+              <i className={styles.costPreviousDot} /> Kostnader {selectedYear - 1}
+            </span>
+          </div>
+
+          <div
+            className={styles.yearChart}
+            style={{ gridTemplateColumns: `repeat(${monthlyRows.length}, minmax(38px, 1fr))` }}
+            aria-label="Helårsdiagram över intäkter och kostnader"
+          >
+            {monthlyRows.map((row) => (
+              <div className={styles.month} key={row.month}>
+                <div className={styles.comparisonBars}>
+                  <span
+                    title={`Intäkter ${selectedYear}: ${formatThousands(row.income)}`}
+                    style={{ height: `${Math.max((row.income / maxBar) * 100, row.income ? 2 : 0)}%` }}
+                    className={styles.income}
+                  />
+                  <span
+                    title={`Intäkter ${selectedYear - 1}: ${formatThousands(row.previousYearIncome)}`}
+                    style={{
+                      height: `${Math.max((row.previousYearIncome / maxBar) * 100, row.previousYearIncome ? 2 : 0)}%`
+                    }}
+                    className={styles.incomePrevious}
+                  />
+                  <span
+                    title={`Kostnader ${selectedYear}: ${formatThousands(row.costs)}`}
+                    style={{ height: `${Math.max((row.costs / maxBar) * 100, row.costs ? 2 : 0)}%` }}
+                    className={styles.cost}
+                  />
+                  <span
+                    title={`Kostnader ${selectedYear - 1}: ${formatThousands(row.previousYearCosts)}`}
+                    style={{
+                      height: `${Math.max((row.previousYearCosts / maxBar) * 100, row.previousYearCosts ? 2 : 0)}%`
+                    }}
+                    className={styles.costPrevious}
+                  />
+                </div>
+                <strong>{row.label}</strong>
+              </div>
+            ))}
+          </div>
+
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Månad</th>
+                <th>Intäkter {selectedYear}</th>
+                <th>Intäkter {selectedYear - 1}</th>
+                <th>Kostnader {selectedYear}</th>
+                <th>Kostnader {selectedYear - 1}</th>
+                <th>Resultat {selectedYear}</th>
+                <th>Resultat {selectedYear - 1}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyRows.map((row) => (
+                <tr key={row.month}>
+                  <td>{row.label}</td>
+                  <td>{formatThousands(row.income)}</td>
+                  <td>{formatThousands(row.previousYearIncome)}</td>
+                  <td>{formatThousands(row.costs)}</td>
+                  <td>{formatThousands(row.previousYearCosts)}</td>
+                  <td>{formatThousands(row.result)}</td>
+                  <td>{formatThousands(row.previousYearResult)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {monthlyRows.map((row) => (
-                  <tr key={row.month}>
-                    <td>{row.label}</td>
-                    <td>{formatThousands(row.income)}</td>
-                    <td>{formatThousands(row.costs)}</td>
-                    <td>{formatThousands(row.result)}</td>
-                    <td>{formatThousands(row.previousYearResult)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </article>
-
-          <article className={styles.panel} id="cash">
-            <div className={styles.panelHeader}>
-              <div>
-                <span>Likviditetsanalys</span>
-                <h2>Faktiskt plus prognos</h2>
-              </div>
-            </div>
-            <div className={styles.cashline}>
-              <span className={styles.actual}>Faktiskt</span>
-              <span className={styles.forecast}>Prognos</span>
-            </div>
-            <p className={styles.copy}>
-              Faktiskt kassaläge räknas från bank- och kassakonton. Resterande månader simuleras
-              med föregående års kassaflöde och ska senare kunna justeras inför styrelsemöten.
-            </p>
-            <div className={styles.forecastList}>
-              <span>Senast faktiskt: {formatThousands(latestActualCash)}</span>
-              <span>Prognos årsslut: {forecastEnd ? formatThousands(forecastEnd) : "saknas"}</span>
-              <span>Konton: 1910, 1920, 1930, 1939, 1940, 1950, 1960</span>
-            </div>
-          </article>
-
-          <article className={styles.panel} id="comparison">
-            <div className={styles.panelHeader}>
-              <div>
-                <span>Kategorier</span>
-                <h2>Begripliga kontogrupper</h2>
-              </div>
-            </div>
-            <div className={styles.categoryList}>
-              {categories.map((category) => (
-                <div key={category.id}>
-                  <span>{category.label}</span>
-                  <strong>{formatThousands(category.amount)}</strong>
-                  <small>{percentChange(category.amount, category.previousAmount)}</small>
-                </div>
               ))}
-            </div>
-          </article>
-        </section>
+            </tbody>
+          </table>
+        </article>
       </section>
     </main>
   );

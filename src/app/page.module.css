@@ -193,8 +193,26 @@
   padding: 8px 0 0;
 }
 
+.yearChart,
+.cashChart {
+  align-items: flex-end;
+  display: grid;
+  gap: 6px;
+  margin: 26px 0;
+  padding: 8px 0 0;
+}
+
+.yearChart {
+  height: 330px;
+}
+
+.cashChart {
+  height: 300px;
+}
+
 .legend {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   margin-top: 20px;
 }
@@ -222,6 +240,14 @@
   background: var(--cost);
 }
 
+.incomePreviousDot {
+  background: #86b89e;
+}
+
+.costPreviousDot {
+  background: #d89180;
+}
+
 .month {
   display: grid;
   gap: 8px;
@@ -244,12 +270,56 @@
   width: 18px;
 }
 
+.comparisonBars,
+.cashBars {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 2px;
+  height: 280px;
+  justify-content: center;
+}
+
+.cashBars {
+  height: 250px;
+}
+
+.comparisonBars span,
+.cashBars span {
+  border-radius: 6px 6px 0 0;
+  display: block;
+}
+
+.comparisonBars span {
+  width: 7px;
+}
+
+.cashBars span {
+  width: 28px;
+}
+
 .income {
   background: var(--income);
 }
 
+.incomePrevious {
+  background: #86b89e;
+}
+
 .cost {
   background: var(--cost);
+}
+
+.costPrevious {
+  background: #d89180;
+}
+
+.actualBar {
+  background: var(--cash);
+}
+
+.forecastBar {
+  background: var(--forecast);
 }
 
 .table {

@@ -50,6 +50,8 @@ export type MonthlyReportRow = {
   income: number;
   costs: number;
   result: number;
+  previousYearIncome: number;
+  previousYearCosts: number;
   previousYearResult: number;
 };
 

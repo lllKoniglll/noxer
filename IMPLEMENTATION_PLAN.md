@@ -183,10 +183,11 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 ### Fas 3: UI for MVP
 
 - [x] Dashboard med KPI:er.
-- [x] Manadsoversikt med jamforelse mot foregaende ar.
+- [x] Manadsoversikt med jamforelse mot samma manad foregaende ar i helarsdiagram.
 - [x] Kategori-vy, forsta version utan drilldown.
 - [x] Likviditetsvy med faktisk/prognos-markering.
 - [x] Lokal auto-inlasning fran `SIE4/`.
+- [x] Separata sidor for manadsoversikt, likviditet och kategorier.
 
 ### Fas 4: Export
 
@@ -233,3 +234,4 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 - 2026-06-18: Forsta plan skapad efter inventering av SIE4-filer.
 - 2026-06-18: GitHub-sparet pausat efter anvandarbeslut; fortsatt arbete sker lokalt.
 - 2026-06-18: Lokal Next.js-app, SIE-parser, rapportmodell och forsta dashboard kopplad till SIE4-data.
+- 2026-06-18: Rapporter uppdelade pa egna sidor och manadsdiagrammet visar hela aret med jamforelse mot foregaende ar.
