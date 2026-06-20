@@ -6,6 +6,8 @@ from app.agent.ollama_client import chat
 from app.agent.tools import (
     TOOL_DEFINITIONS,
     analyze_category_over_time,
+    analyze_metric_changes,
+    analyze_query_totals,
     get_category_changes,
     get_largest_income_or_expense,
     make_difference_plot,
@@ -101,12 +103,55 @@ def extract_category_query(text: str) -> Optional[str]:
     return quoted.group(1) if quoted else None
 
 
+def extract_query_target(text: str) -> Optional[str]:
+    quoted = re.search(r'"([^"]+)"', text)
+    if quoted:
+        return quoted.group(1).strip()
+
+    upper_tokens = re.findall(r"\b[A-ZÅÄÖ]{2,}\b", text)
+    ignored = {"HUR", "VAD", "VISA", "SEK", "TKR"}
+    for token in upper_tokens:
+        if token not in ignored:
+            return token
+
+    match = re.search(
+        r"\b(?:för|från|mot|gällande|kring)\s+([A-Za-zÅÄÖåäö0-9][A-Za-zÅÄÖåäö0-9 ._-]{1,40})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    candidate = match.group(1).strip(" ?.,")
+    stop_words = ["fördelat", "året", "föregående", "innevarande", "kostnader", "intäkter"]
+    words = [word for word in candidate.split() if word.lower() not in stop_words]
+    return " ".join(words).strip() or None
+
+
 def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
     lower = message.lower()
     year = extract_year(message)
     category_query = extract_category_query(message)
+    query_target = extract_query_target(message)
     wants_difference = any(word in lower for word in ["skillnad", "skillnader", "avvikelse", "avvikelser", "jämför", "jamfor"])
+    wants_change = any(word in lower for word in ["ökning", "okning", "minskning", "ökat", "okat", "minskat", "största ökningen", "största minskningen"])
     wants_chart = any(word in lower for word in ["diagram", "graf", "plot", "visa", "fördelat", "fordelat", "över året", "over aret"])
+    mentions_income = any(word in lower for word in ["intäkt", "intakt", "intäkter", "intakter", "inkomst"])
+    mentions_cost = any(word in lower for word in ["kostnad", "kostnader", "utgift", "utgifter"])
+
+    if query_target and (mentions_income or mentions_cost):
+        return "analyze_query_totals", {
+            "query": query_target,
+            "year": year,
+            "comparison": "samePeriod",
+            "kind": "income" if mentions_income else "cost",
+        }
+
+    if (mentions_income or mentions_cost) and (wants_change or wants_difference):
+        return "analyze_metric_changes", {
+            "year": year,
+            "comparison": "samePeriod",
+            "metric": "income" if mentions_income else "cost",
+        }
 
     if category_query and (
         wants_chart
@@ -121,9 +166,9 @@ def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
         }
 
     if wants_difference and wants_chart:
-        if any(word in lower for word in ["intäkt", "intakt", "inkomst"]):
+        if mentions_income:
             metric = "income"
-        elif any(word in lower for word in ["kostnad", "utgift"]):
+        elif mentions_cost:
             metric = "cost"
         else:
             metric = "result"
@@ -134,7 +179,7 @@ def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
 
     month = extract_month(message)
     if month and any(word in lower for word in ["största", "storsta", "högsta", "hogsta"]):
-        if any(word in lower for word in ["intäkt", "intakt", "inkomst"]):
+        if mentions_income:
             return "get_largest_income_or_expense", {"year": year, "month": month, "kind": "income"}
         return "get_largest_income_or_expense", {"year": year, "month": month, "kind": "cost"}
 
@@ -178,6 +223,19 @@ def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[
             args.get("year"),
             args.get("comparison") or "samePeriod",
             args.get("chart") or "monthly",
+        )
+        chart = ChartSpec(**result["chart"]) if result.get("chart") else None
+        return result, chart
+    if name == "analyze_metric_changes":
+        result = analyze_metric_changes(args.get("year"), args.get("comparison") or "samePeriod", args.get("metric") or "income")
+        chart = ChartSpec(**result["chart"]) if result.get("chart") else None
+        return result, chart
+    if name == "analyze_query_totals":
+        result = analyze_query_totals(
+            str(args.get("query") or ""),
+            args.get("year"),
+            args.get("comparison") or "samePeriod",
+            args.get("kind"),
         )
         chart = ChartSpec(**result["chart"]) if result.get("chart") else None
         return result, chart

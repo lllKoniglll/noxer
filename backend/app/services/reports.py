@@ -1,3 +1,4 @@
+import re
 import unicodedata
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Literal, Optional, Tuple
@@ -62,6 +63,22 @@ def month_from_date(date: str) -> int:
 def normalize_text(value: str) -> str:
     decomposed = unicodedata.normalize("NFKD", value.lower())
     return "".join(character for character in decomposed if not unicodedata.combining(character))
+
+
+def acronym_for_text(value: str) -> str:
+    words = re.findall(r"[a-zA-ZÅÄÖåäö0-9]+", normalize_text(value))
+    return "".join(word[0] for word in words if word)
+
+
+def text_matches_query(query: str, value: str) -> bool:
+    normalized_query = normalize_text(query).replace(" ", "")
+    normalized_value = normalize_text(value)
+    if normalize_text(query) in normalized_value:
+        return True
+    acronym = acronym_for_text(value)
+    if len(normalized_query) >= 2 and (normalized_query == acronym or normalized_query in acronym):
+        return True
+    return False
 
 
 def normalize_year(dataset: AccountingDataset, year: Optional[int]) -> int:
@@ -234,6 +251,77 @@ def category_monthly_report(
         "comparison": comparison,
         "rows": monthly_rows,
         "totals": totals,
+    }
+
+
+def query_monthly_report(
+    dataset: AccountingDataset,
+    query: str,
+    year: Optional[int] = None,
+    comparison: ComparisonMode = "samePeriod",
+    kind: Optional[str] = None,
+) -> Dict[str, object]:
+    selected_year = normalize_year(dataset, year)
+    rows = {
+        index + 1: {
+            "month": index + 1,
+            "label": label,
+            "amount": 0.0,
+            "previous_amount": 0.0,
+            "transactions": [],
+        }
+        for index, label in enumerate(MONTH_LABELS)
+    }
+    account_totals: Dict[str, float] = {}
+
+    for voucher in vouchers_for_years(dataset, selected_year, comparison):
+        voucher_year = year_from_date(voucher.date)
+        row = rows[month_from_date(voucher.date)]
+        for transaction in voucher.transactions:
+            transaction_kind = result_kind(transaction)
+            if transaction_kind is None or (kind and transaction_kind != kind):
+                continue
+            account = dataset.accounts.get(transaction.account)
+            account_name = account.name if account else transaction.account
+            haystack = f"{voucher.text} {transaction.text} {transaction.account} {account_name} {voucher.series}{voucher.number}"
+            if not text_matches_query(query, haystack):
+                continue
+
+            amount = -transaction.amount if transaction_kind == "income" else transaction.amount
+            target = "amount" if voucher_year == selected_year else "previous_amount"
+            row[target] = float(row[target]) + amount
+            if voucher_year == selected_year:
+                account_totals[account_name] = account_totals.get(account_name, 0.0) + amount
+            row["transactions"].append(
+                {
+                    "date": voucher.date,
+                    "voucher": f"{voucher.series}{voucher.number}",
+                    "description": voucher.text,
+                    "account": transaction.account,
+                    "account_name": account_name,
+                    "kind": transaction_kind,
+                    "amount": amount,
+                }
+            )
+
+    monthly_rows = list(rows.values())
+    totals = {
+        "amount": sum(float(row["amount"]) for row in monthly_rows),
+        "previous_amount": sum(float(row["previous_amount"]) for row in monthly_rows),
+    }
+    top_accounts = sorted(
+        [{"name": name, "amount": amount} for name, amount in account_totals.items()],
+        key=lambda item: abs(item["amount"]),
+        reverse=True,
+    )[:8]
+    return {
+        "query": query,
+        "year": selected_year,
+        "comparison": comparison,
+        "kind": kind,
+        "rows": monthly_rows,
+        "totals": totals,
+        "top_accounts": top_accounts,
     }
 
 

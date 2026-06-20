@@ -7,6 +7,7 @@ from app.services.reports import (
     format_tkr,
     monthly_report,
     normalize_year,
+    query_monthly_report,
     transactions_for_month,
 )
 from app.services.sie_parser import load_dataset
@@ -68,6 +69,149 @@ def get_category_changes(year: Optional[int], comparison: str = "samePeriod", li
         "comparison": comparison,
         "changes": changes,
         "answer": "Största kategoriavvikelserna är:\n" + "\n".join(f"- {bullet}" for bullet in bullets),
+    }
+
+
+def analyze_metric_changes(year: Optional[int], comparison: str = "samePeriod", metric: str = "income") -> Dict[str, Any]:
+    data = dataset()
+    selected_year = normalize_year(data, year)
+    rows = monthly_report(data, selected_year, "samePeriod" if comparison == "samePeriod" else "fullYear")
+    if metric == "cost":
+        current_values = [row.costs for row in rows]
+        previous_values = [row.previous_costs for row in rows]
+        label = "Kostnader"
+        good_color = "#0e7a4f"
+        bad_color = "#b9412d"
+    elif metric == "result":
+        current_values = [row.result for row in rows]
+        previous_values = [row.previous_result for row in rows]
+        label = "Resultat"
+        good_color = "#0e7a4f"
+        bad_color = "#b9412d"
+    else:
+        current_values = [row.income for row in rows]
+        previous_values = [row.previous_income for row in rows]
+        label = "Intäkter"
+        good_color = "#0e7a4f"
+        bad_color = "#b9412d"
+
+    deltas = [current - previous for current, previous in zip(current_values, previous_values)]
+    total = sum(current_values)
+    previous_total = sum(previous_values)
+    increase = max(zip(rows, deltas, current_values, previous_values), key=lambda item: item[1], default=None)
+    decrease = min(zip(rows, deltas, current_values, previous_values), key=lambda item: item[1], default=None)
+    direction = "högre" if total > previous_total else "lägre" if total < previous_total else "oförändrade"
+    answer = (
+        f"{label} är {format_tkr(total)} {selected_year}, jämfört med {format_tkr(previous_total)} {selected_year - 1}; "
+        f"det är {format_tkr(abs(total - previous_total))} {direction}. "
+        f"Största ökningen är {increase[0].label} ({format_tkr(float(increase[1]))}) och "
+        f"största minskningen är {decrease[0].label} ({format_tkr(float(decrease[1]))})."
+        if increase and decrease
+        else f"Jag hittar inte tillräckligt med data för {label.lower()}."
+    )
+    return {
+        "year": selected_year,
+        "comparison": comparison,
+        "metric": metric,
+        "total": total,
+        "previous_total": previous_total,
+        "deltas": [
+            {
+                "month": row.month,
+                "label": row.label,
+                "current": current,
+                "previous": previous,
+                "delta": delta,
+            }
+            for row, current, previous, delta in zip(rows, current_values, previous_values, deltas)
+        ],
+        "answer": answer,
+        "chart": {
+            "title": f"{label}: skillnad {selected_year} mot {selected_year - 1}",
+            "plotly": {
+                "data": [
+                    {
+                        "type": "bar",
+                        "name": "Skillnad",
+                        "x": [row.label for row in rows],
+                        "y": [round(delta) for delta in deltas],
+                        "marker": {"color": [good_color if delta >= 0 else bad_color for delta in deltas]},
+                    }
+                ],
+                "layout": {
+                    "margin": {"t": 36, "r": 18, "b": 38, "l": 58},
+                    "paper_bgcolor": "#ffffff",
+                    "plot_bgcolor": "#ffffff",
+                    "yaxis": {"title": "SEK"},
+                },
+                "config": {"displayModeBar": True, "responsive": True},
+            },
+        },
+    }
+
+
+def analyze_query_totals(
+    query: str,
+    year: Optional[int],
+    comparison: str = "samePeriod",
+    kind: Optional[str] = None,
+) -> Dict[str, Any]:
+    data = dataset()
+    selected_comparison = "samePeriod" if comparison == "samePeriod" else "fullYear"
+    selected_kind = kind if kind in {"income", "cost"} else None
+    report = query_monthly_report(data, query, year, selected_comparison, selected_kind)
+    rows = report["rows"]
+    totals = report["totals"]
+    selected_year = int(report["year"])
+    current_total = float(totals["amount"])
+    previous_total = float(totals["previous_amount"])
+    delta = current_total - previous_total
+    top_accounts = report["top_accounts"]
+    kind_label = "intäkter" if selected_kind == "income" else "kostnader" if selected_kind == "cost" else "utfall"
+
+    if current_total == 0 and previous_total == 0:
+        answer = f"Jag hittar inga {kind_label} som matchar '{query}' i den inlästa SIE-datan."
+    else:
+        direction = "högre" if delta > 0 else "lägre" if delta < 0 else "oförändrat"
+        account_text = f" Största konto är {top_accounts[0]['name']} med {format_tkr(float(top_accounts[0]['amount']))}." if top_accounts else ""
+        answer = (
+            f"{kind_label.capitalize()} för '{query}' är {format_tkr(current_total)} {selected_year}, jämfört med "
+            f"{format_tkr(previous_total)} {selected_year - 1}. Det är {format_tkr(abs(delta))} {direction}."
+            f"{account_text}"
+        )
+
+    return {
+        **report,
+        "answer": answer,
+        "chart": {
+            "title": f"{kind_label.capitalize()} för {query}",
+            "plotly": {
+                "data": [
+                    {
+                        "type": "bar",
+                        "name": f"{selected_year}",
+                        "x": [row["label"] for row in rows],
+                        "y": [round(float(row["amount"])) for row in rows],
+                        "marker": {"color": "#0e7a4f" if selected_kind == "income" else "#b9412d"},
+                    },
+                    {
+                        "type": "bar",
+                        "name": f"{selected_year - 1}",
+                        "x": [row["label"] for row in rows],
+                        "y": [round(float(row["previous_amount"])) for row in rows],
+                        "marker": {"color": "#86b89e" if selected_kind == "income" else "#d89180"},
+                    },
+                ],
+                "layout": {
+                    "barmode": "group",
+                    "margin": {"t": 36, "r": 18, "b": 38, "l": 58},
+                    "paper_bgcolor": "#ffffff",
+                    "plot_bgcolor": "#ffffff",
+                    "yaxis": {"title": "SEK"},
+                },
+                "config": {"displayModeBar": True, "responsive": True},
+            },
+        },
     }
 
 
@@ -249,6 +393,16 @@ TOOL_DEFINITIONS = [
         "name": "get_category_changes",
         "description": "Visa kategorier som blivit dyrare, billigare eller dragit iväg jämfört med föregående år.",
         "parameters": {"year": "number|null", "comparison": "samePeriod|fullYear", "limit": "number"},
+    },
+    {
+        "name": "analyze_metric_changes",
+        "description": "Analysera intäkter, kostnader eller resultat jämfört med föregående år och hitta största månadsökning och månadsminskning.",
+        "parameters": {"year": "number|null", "comparison": "samePeriod|fullYear", "metric": "income|cost|result"},
+    },
+    {
+        "name": "analyze_query_totals",
+        "description": "Summera intäkter eller kostnader som matchar en söktext/motpart, exempelvis KAC, i verifikationstext, transaktionstext eller kontonamn.",
+        "parameters": {"query": "string", "year": "number|null", "comparison": "samePeriod|fullYear", "kind": "income|cost|null"},
     },
     {
         "name": "analyze_category_over_time",

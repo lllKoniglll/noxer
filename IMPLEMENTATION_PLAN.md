@@ -241,3 +241,4 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 - 2026-06-18: Jamforelseperiod kan valjas mellan helt foregaende ar och samma period till senaste verifikationsdatum.
 - 2026-06-20: Branch skapad for Python/ADK-baserad chattagent med FastAPI-backend och agent-tools.
 - 2026-06-20: Chattagenten utokad med kategori- och skillnadsanalyser, inklusive diagram for t.ex. personalkostnader over aret.
+- 2026-06-20: Chattagenten utokad med intaktsanalys for storsta okning/minskning samt textsokning/akronymmatchning for t.ex. KAC.
