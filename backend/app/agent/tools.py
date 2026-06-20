@@ -338,6 +338,115 @@ def compare_query_table(query: str, year: Optional[int], kind: Optional[str] = N
     }
 
 
+def yearly_query_table(query: str, kind: Optional[str] = "income") -> Dict[str, Any]:
+    data = dataset()
+    selected_kind = kind if kind in {"income", "cost"} else None
+    connection = build_connection(data)
+    where_kind = "and kind = ?" if selected_kind else ""
+    normalized_query = query.lower().replace(" ", "")
+    parameters: List[Any] = [like_pattern(query), like_pattern(query), like_pattern(query), like_pattern(query), like_pattern(normalized_query)]
+    if selected_kind:
+        parameters.append(selected_kind)
+    rows = query_rows(
+        connection,
+        f"""
+        select
+            year as Ar,
+            round(sum(amount), 2) as Belopp,
+            count(*) as Rader
+        from transactions
+        where (
+            lower(account_name) like ?
+            or lower(transaction_text) like ?
+            or lower(account) like ?
+            or lower(category_label) like ?
+            or search_acronym like ?
+        )
+          {where_kind}
+        group by year
+        having abs(sum(amount)) > 0.004
+        order by year
+        """,
+        parameters,
+    )
+    total = sum(float(row["Belopp"]) for row in rows)
+    kind_label = "Intäkter" if selected_kind == "income" else "Kostnader" if selected_kind == "cost" else "Utfall"
+    answer = (
+        f"{kind_label} för '{query}' över åren summerar till {format_tkr(total)}."
+        if rows
+        else f"Jag hittade inget underlag för '{query}' över åren."
+    )
+    return {
+        "query": query,
+        "kind": selected_kind,
+        "answer": answer,
+        "table": _table(f"{kind_label} för {query} över åren", ["Ar", "Belopp", "Rader"], rows),
+    }
+
+
+def transaction_rows_table(query: str, year: Optional[int], kind: Optional[str] = None, limit: int = 100) -> Dict[str, Any]:
+    data = dataset()
+    selected_year = latest_year(data, year)
+    selected_kind = kind if kind in {"income", "cost"} else None
+    connection = build_connection(data)
+    where_kind = "and kind = ?" if selected_kind else ""
+    normalized_query = query.lower().replace(" ", "")
+    parameters: List[Any] = [
+        selected_year,
+        like_pattern(query),
+        like_pattern(query),
+        like_pattern(query),
+        like_pattern(query),
+        like_pattern(normalized_query),
+    ]
+    if selected_kind:
+        parameters.append(selected_kind)
+    parameters.append(limit)
+    rows = query_rows(
+        connection,
+        f"""
+        select
+            date as Datum,
+            voucher as Ver,
+            account as Konto,
+            account_name as Kontonamn,
+            category_label as Kategori,
+            description as Text,
+            round(amount, 2) as Belopp
+        from transactions
+        where year = ?
+          and (
+            lower(account_name) like ?
+            or lower(transaction_text) like ?
+            or lower(account) like ?
+            or lower(category_label) like ?
+            or search_acronym like ?
+          )
+          {where_kind}
+        order by date, voucher, account
+        limit ?
+        """,
+        parameters,
+    )
+    total = sum(float(row["Belopp"]) for row in rows)
+    answer = (
+        f"Jag hittade {len(rows)} rader för '{query}' under {selected_year}, totalt {format_tkr(total)}."
+        if rows
+        else f"Jag hittade inga rader för '{query}' under {selected_year}."
+    )
+    return {
+        "query": query,
+        "year": selected_year,
+        "kind": selected_kind,
+        "answer": answer,
+        "table": _table(
+            f"Rader för {query}",
+            ["Datum", "Ver", "Konto", "Kontonamn", "Kategori", "Text", "Belopp"],
+            rows,
+        ),
+    }
+
+
 def analyze_category_over_time(
     category_query: str,
     year: Optional[int],
@@ -536,6 +645,16 @@ TOOL_DEFINITIONS = [
         "name": "compare_query_table",
         "description": "Visa en tabell med konto-för-konto-skillnader för en söktext, t.ex. vad som skiljer planhyror mot föregående år.",
         "parameters": {"query": "string", "year": "number|null", "kind": "income|cost|null"},
+    },
+    {
+        "name": "yearly_query_table",
+        "description": "Visa en tabell som summerar en söktext per år, t.ex. intäkter för KAC över åren.",
+        "parameters": {"query": "string", "kind": "income|cost|null"},
+    },
+    {
+        "name": "transaction_rows_table",
+        "description": "Visa alla matchande transaktionsrader i tabell för en söktext.",
+        "parameters": {"query": "string", "year": "number|null", "kind": "income|cost|null", "limit": "number"},
     },
     {
         "name": "analyze_category_over_time",

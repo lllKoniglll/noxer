@@ -14,6 +14,8 @@ from app.agent.tools import (
     list_accounts_for_query,
     make_difference_plot,
     make_monthly_plot,
+    transaction_rows_table,
+    yearly_query_table,
 )
 from app.schemas import ChartSpec, ChatMessage, ChatResponse, TableSpec, ToolCall
 
@@ -105,10 +107,25 @@ def extract_category_query(text: str) -> Optional[str]:
     return quoted.group(1) if quoted else None
 
 
+def clean_query_target(candidate: str) -> Optional[str]:
+    value = candidate.strip(" ?.,:;")
+    value = re.sub(r"\b(i år|i ar|under\s+20\d{2}|över åren|over aren|i en tabell|som tabell|tabell|diagram)\b", "", value, flags=re.IGNORECASE)
+    value = re.sub(r"\b(intäkt|intäkter|intakt|intakter|inträkt|inträkter|itäkt|itäkter|kostnad|kostnader|utgift|utgifter|konton|konto|alla|rader|visa|ge mig|för|från)\b", "", value, flags=re.IGNORECASE)
+    value = " ".join(value.split()).strip(" ?.,:;")
+    lower = value.lower()
+    if "planyhyr" in lower or "planhyr" in lower or "planhyra" in lower:
+        return "planhyr"
+    if "damlag" in lower or "damlaget" in lower:
+        return "dam"
+    if "herrlag" in lower or "herrlaget" in lower:
+        return "herr"
+    return value or None
+
+
 def extract_query_target(text: str) -> Optional[str]:
     quoted = re.search(r'"([^"]+)"', text)
     if quoted:
-        return quoted.group(1).strip()
+        return clean_query_target(quoted.group(1).strip())
 
     upper_tokens = re.findall(r"\b[A-ZÅÄÖ]{2,}\b", text)
     ignored = {"HUR", "VAD", "VISA", "SEK", "TKR"}
@@ -118,23 +135,50 @@ def extract_query_target(text: str) -> Optional[str]:
 
     if re.search(r"\bplanhyr", text, flags=re.IGNORECASE):
         return "planhyr"
+    if re.search(r"\bplanyhyr", text, flags=re.IGNORECASE):
+        return "planhyr"
     if re.search(r"\blokalhyr", text, flags=re.IGNORECASE):
         return "lokalhyr"
+    if re.search(r"\bdamlaget?\b", text, flags=re.IGNORECASE):
+        return "dam"
+
+    metric_target = re.search(
+        r"\b(?:intäkt|intäkter|intakt|intakter|inträkt|inträkter|itäkt|itäkter|kostnad|kostnader|utgift|utgifter)\s+(?:för|från|mot)\s+(.+?)(?:$|\s+i år|\s+i ar|\s+under|\s+över åren|\s+over aren|\s+i en tabell|\s+som tabell|\s+diagram)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if metric_target:
+        target = clean_query_target(metric_target.group(1))
+        if target:
+            return target
+
+    subject_target = re.search(r"\bvad har\s+(.+?)\s+haft\s+för\s+(?:kostnad|kostnader|utgift|utgifter|intäkt|intäkter)", text, flags=re.IGNORECASE)
+    if subject_target:
+        target = clean_query_target(subject_target.group(1))
+        if target:
+            return target
 
     match = re.search(
-        r"\b(?:för|från|mot|gällande|kring)\s+([A-Za-zÅÄÖåäö0-9][A-Za-zÅÄÖåäö0-9 ._-]{1,40})",
+        r"\b(?:för|från|mot|gällande|kring|över)\s+([A-Za-zÅÄÖåäö0-9][A-Za-zÅÄÖåäö0-9 ._-]{1,60})",
         text,
         flags=re.IGNORECASE,
     )
     if not match:
         return None
-    candidate = match.group(1).strip(" ?.,")
-    stop_words = ["fördelat", "året", "föregående", "innevarande", "kostnader", "intäkter"]
-    words = [word for word in candidate.split() if word.lower() not in stop_words]
-    return " ".join(words).strip() or None
+    return clean_query_target(match.group(1))
 
 
-def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
+def previous_query_target(history: List[ChatMessage]) -> Optional[str]:
+    for item in reversed(history[-8:]):
+        if item.role != "user":
+            continue
+        target = extract_query_target(item.content)
+        if target:
+            return target
+    return None
+
+
+def deterministic_plan(message: str, history: List[ChatMessage]) -> Tuple[str, Dict[str, Any]]:
     lower = message.lower()
     year = extract_year(message)
     category_query = extract_category_query(message)
@@ -142,9 +186,28 @@ def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
     wants_difference = any(word in lower for word in ["skillnad", "skillnader", "skiljer", "avvikelse", "avvikelser", "jämför", "jamfor"])
     wants_change = any(word in lower for word in ["ökning", "okning", "minskning", "ökat", "okat", "minskat", "största ökningen", "största minskningen"])
     wants_chart = any(word in lower for word in ["diagram", "graf", "plot", "visa", "fördelat", "fordelat", "över året", "over aret"])
-    wants_table = any(word in lower for word in ["tabell", "lista", "alla", "konton", "rader", "specifikation", "specificera"])
-    mentions_income = any(word in lower for word in ["intäkt", "intakt", "intäkter", "intakter", "inkomst"])
+    wants_table = any(word in lower for word in ["tabell", "lista", "alla", "konton", "konto", "rader", "raader", "specifikation", "specificera", "över åren", "over aren"])
+    wants_rows = any(word in lower for word in ["rader", "raader", "alla rader"])
+    wants_yearly = any(word in lower for word in ["över åren", "over aren", "per år", "per ar"])
+    mentions_income = any(word in lower for word in ["intäkt", "intakt", "intäkter", "intakter", "inträkt", "inträkter", "itäkt", "itäkter", "inkomst"])
     mentions_cost = any(word in lower for word in ["kostnad", "kostnader", "utgift", "utgifter"])
+
+    if not query_target and (wants_table or wants_rows):
+        query_target = previous_query_target(history)
+
+    if query_target and wants_yearly:
+        return "yearly_query_table", {
+            "query": query_target,
+            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
+        }
+
+    if query_target and wants_rows:
+        return "transaction_rows_table", {
+            "query": query_target,
+            "year": year,
+            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
+            "limit": 100,
+        }
 
     if query_target and wants_table:
         return "list_accounts_for_query", {
@@ -169,6 +232,13 @@ def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
         }
 
     if (mentions_income or mentions_cost) and (wants_change or wants_difference):
+        return "analyze_metric_changes", {
+            "year": year,
+            "comparison": "samePeriod",
+            "metric": "income" if mentions_income else "cost",
+        }
+
+    if (mentions_income or mentions_cost) and (year or "i år" in lower or "i ar" in lower or "under" in lower):
         return "analyze_metric_changes", {
             "year": year,
             "comparison": "samePeriod",
@@ -269,6 +339,19 @@ def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[
         result = compare_query_table(str(args.get("query") or ""), args.get("year"), args.get("kind"))
         table = TableSpec(**result["table"]) if result.get("table") else None
         return result, None, table
+    if name == "yearly_query_table":
+        result = yearly_query_table(str(args.get("query") or ""), args.get("kind"))
+        table = TableSpec(**result["table"]) if result.get("table") else None
+        return result, None, table
+    if name == "transaction_rows_table":
+        result = transaction_rows_table(
+            str(args.get("query") or ""),
+            args.get("year"),
+            args.get("kind"),
+            int(args.get("limit") or 100),
+        )
+        table = TableSpec(**result["table"]) if result.get("table") else None
+        return result, None, table
     if name == "make_difference_plot":
         result = make_difference_plot(args.get("year"), args.get("comparison") or "samePeriod", args.get("metric") or "result")
         chart = ChartSpec(**result["chart"]) if result.get("chart") else None
@@ -294,7 +377,9 @@ def synthesize_answer(user_message: str, result: Dict[str, Any], history: List[C
 
 
 def answer_chat(message: str, history: List[ChatMessage]) -> ChatResponse:
-    plan = llm_plan(message, history) or deterministic_plan(message)
+    plan = deterministic_plan(message, history)
+    if plan[0] == "get_category_changes":
+        plan = llm_plan(message, history) or plan
     tool_name, args = plan
     result, chart, table = run_tool(tool_name, args)
     answer, source = synthesize_answer(message, result, history)

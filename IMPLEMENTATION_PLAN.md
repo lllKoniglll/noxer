@@ -243,3 +243,4 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 - 2026-06-20: Chattagenten utokad med kategori- och skillnadsanalyser, inklusive diagram for t.ex. personalkostnader over aret.
 - 2026-06-20: Chattagenten utokad med intaktsanalys for storsta okning/minskning samt textsokning/akronymmatchning for t.ex. KAC.
 - 2026-06-20: SIE-data normaliseras aven till ett internt SQLite-lager for agentfragor; chatten kan nu visa SQL-baserade tabeller.
+- 2026-06-20: Fragetolkningen styr nu tydligare tabell/diagram-lage och kan ateranvanda tidigare amne for foljdfragor som "visa alla rader".
