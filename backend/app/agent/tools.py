@@ -11,6 +11,7 @@ from app.services.reports import (
     transactions_for_month,
 )
 from app.services.sie_parser import load_dataset
+from app.services.sqlite_store import build_connection, latest_year, like_pattern, query_rows
 
 
 SIE_DIR = Path(__file__).resolve().parents[3] / "SIE4"
@@ -215,6 +216,128 @@ def analyze_query_totals(
     }
 
 
+def _table(title: str, columns: List[str], rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {"title": title, "columns": columns, "rows": rows}
+
+
+def list_accounts_for_query(query: str, year: Optional[int], kind: Optional[str] = "income") -> Dict[str, Any]:
+    data = dataset()
+    selected_year = latest_year(data, year)
+    selected_kind = kind if kind in {"income", "cost"} else None
+    connection = build_connection(data)
+    where_kind = "and kind = ?" if selected_kind else ""
+    normalized_query = query.lower().replace(" ", "")
+    match_parameters = [like_pattern(query), like_pattern(query), like_pattern(query), like_pattern(query), like_pattern(normalized_query)]
+    parameters: List[Any] = [selected_year, *match_parameters]
+    if selected_kind:
+        parameters.append(selected_kind)
+    rows = query_rows(
+        connection,
+        f"""
+        select
+            account as Konto,
+            account_name as Kontonamn,
+            category_label as Kategori,
+            round(sum(amount), 2) as Belopp,
+            count(*) as Rader
+        from transactions
+        where year = ?
+          and (
+            lower(account_name) like ?
+            or lower(transaction_text) like ?
+            or lower(account) like ?
+            or lower(category_label) like ?
+            or search_acronym like ?
+          )
+          {where_kind}
+        group by account, account_name, category_label
+        having abs(sum(amount)) > 0.004
+        order by abs(sum(amount)) desc
+        limit 50
+        """,
+        parameters,
+    )
+    total = sum(float(row["Belopp"]) for row in rows)
+    kind_label = "intäktskonton" if selected_kind == "income" else "kostnadskonton" if selected_kind == "cost" else "konton"
+    answer = (
+        f"Jag hittade {len(rows)} {kind_label} för '{query}' under {selected_year}, totalt {format_tkr(total)}."
+        if rows
+        else f"Jag hittade inga {kind_label} för '{query}' under {selected_year}."
+    )
+    return {
+        "query": query,
+        "year": selected_year,
+        "kind": selected_kind,
+        "answer": answer,
+        "table": _table(f"{kind_label.capitalize()} för {query}", ["Konto", "Kontonamn", "Kategori", "Belopp", "Rader"], rows),
+    }
+
+
+def compare_query_table(query: str, year: Optional[int], kind: Optional[str] = None) -> Dict[str, Any]:
+    data = dataset()
+    selected_year = latest_year(data, year)
+    selected_kind = kind if kind in {"income", "cost"} else None
+    connection = build_connection(data)
+    where_kind = "and kind = ?" if selected_kind else ""
+    normalized_query = query.lower().replace(" ", "")
+    match_parameters = [like_pattern(query), like_pattern(query), like_pattern(query), like_pattern(query), like_pattern(normalized_query)]
+    parameters: List[Any] = [selected_year, selected_year - 1, *match_parameters]
+    if selected_kind:
+        parameters.append(selected_kind)
+    rows = query_rows(
+        connection,
+        f"""
+        select
+            account as Konto,
+            account_name as Kontonamn,
+            category_label as Kategori,
+            round(sum(case when year = ? then amount else 0 end), 2) as Nuvarande,
+            round(sum(case when year = ? then amount else 0 end), 2) as Foregaende,
+            round(
+                sum(case when year = ? then amount else 0 end)
+                - sum(case when year = ? then amount else 0 end),
+                2
+            ) as Skillnad,
+            count(*) as Rader
+        from transactions
+        where year in (?, ?)
+          and (
+            lower(account_name) like ?
+            or lower(transaction_text) like ?
+            or lower(account) like ?
+            or lower(category_label) like ?
+            or search_acronym like ?
+          )
+          {where_kind}
+        group by account, account_name, category_label
+        having abs(Nuvarande) > 0.004 or abs(Foregaende) > 0.004
+        order by abs(Skillnad) desc
+        limit 50
+        """,
+        [selected_year, selected_year - 1, selected_year, selected_year - 1, *parameters],
+    )
+    total_current = sum(float(row["Nuvarande"]) for row in rows)
+    total_previous = sum(float(row["Foregaende"]) for row in rows)
+    delta = total_current - total_previous
+    answer = (
+        f"För '{query}' är utfallet {format_tkr(total_current)} {selected_year} mot "
+        f"{format_tkr(total_previous)} {selected_year - 1}. Skillnaden är {format_tkr(delta)}."
+        if rows
+        else f"Jag hittade inget underlag för '{query}' att jämföra."
+    )
+    return {
+        "query": query,
+        "year": selected_year,
+        "kind": selected_kind,
+        "answer": answer,
+        "table": _table(
+            f"Skillnad för {query}",
+            ["Konto", "Kontonamn", "Kategori", "Nuvarande", "Foregaende", "Skillnad", "Rader"],
+            rows,
+        ),
+    }
+
+
 def analyze_category_over_time(
     category_query: str,
     year: Optional[int],
@@ -403,6 +526,16 @@ TOOL_DEFINITIONS = [
         "name": "analyze_query_totals",
         "description": "Summera intäkter eller kostnader som matchar en söktext/motpart, exempelvis KAC, i verifikationstext, transaktionstext eller kontonamn.",
         "parameters": {"query": "string", "year": "number|null", "comparison": "samePeriod|fullYear", "kind": "income|cost|null"},
+    },
+    {
+        "name": "list_accounts_for_query",
+        "description": "Visa en tabell med alla konton som matchar en söktext/motpart, t.ex. alla intäktskonton för KAC.",
+        "parameters": {"query": "string", "year": "number|null", "kind": "income|cost|null"},
+    },
+    {
+        "name": "compare_query_table",
+        "description": "Visa en tabell med konto-för-konto-skillnader för en söktext, t.ex. vad som skiljer planhyror mot föregående år.",
+        "parameters": {"query": "string", "year": "number|null", "kind": "income|cost|null"},
     },
     {
         "name": "analyze_category_over_time",

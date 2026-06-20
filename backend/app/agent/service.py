@@ -8,12 +8,14 @@ from app.agent.tools import (
     analyze_category_over_time,
     analyze_metric_changes,
     analyze_query_totals,
+    compare_query_table,
     get_category_changes,
     get_largest_income_or_expense,
+    list_accounts_for_query,
     make_difference_plot,
     make_monthly_plot,
 )
-from app.schemas import ChartSpec, ChatMessage, ChatResponse, ToolCall
+from app.schemas import ChartSpec, ChatMessage, ChatResponse, TableSpec, ToolCall
 
 
 MONTHS = {
@@ -114,6 +116,11 @@ def extract_query_target(text: str) -> Optional[str]:
         if token not in ignored:
             return token
 
+    if re.search(r"\bplanhyr", text, flags=re.IGNORECASE):
+        return "planhyr"
+    if re.search(r"\blokalhyr", text, flags=re.IGNORECASE):
+        return "lokalhyr"
+
     match = re.search(
         r"\b(?:för|från|mot|gällande|kring)\s+([A-Za-zÅÄÖåäö0-9][A-Za-zÅÄÖåäö0-9 ._-]{1,40})",
         text,
@@ -132,11 +139,26 @@ def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
     year = extract_year(message)
     category_query = extract_category_query(message)
     query_target = extract_query_target(message)
-    wants_difference = any(word in lower for word in ["skillnad", "skillnader", "avvikelse", "avvikelser", "jämför", "jamfor"])
+    wants_difference = any(word in lower for word in ["skillnad", "skillnader", "skiljer", "avvikelse", "avvikelser", "jämför", "jamfor"])
     wants_change = any(word in lower for word in ["ökning", "okning", "minskning", "ökat", "okat", "minskat", "största ökningen", "största minskningen"])
     wants_chart = any(word in lower for word in ["diagram", "graf", "plot", "visa", "fördelat", "fordelat", "över året", "over aret"])
+    wants_table = any(word in lower for word in ["tabell", "lista", "alla", "konton", "rader", "specifikation", "specificera"])
     mentions_income = any(word in lower for word in ["intäkt", "intakt", "intäkter", "intakter", "inkomst"])
     mentions_cost = any(word in lower for word in ["kostnad", "kostnader", "utgift", "utgifter"])
+
+    if query_target and wants_table:
+        return "list_accounts_for_query", {
+            "query": query_target,
+            "year": year,
+            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
+        }
+
+    if query_target and wants_difference:
+        return "compare_query_table", {
+            "query": query_target,
+            "year": year,
+            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
+        }
 
     if query_target and (mentions_income or mentions_cost):
         return "analyze_query_totals", {
@@ -210,13 +232,13 @@ def llm_plan(message: str, history: List[ChatMessage]) -> Optional[Tuple[str, Di
     return None
 
 
-def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[ChartSpec]]:
+def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[ChartSpec], Optional[TableSpec]]:
     if name == "get_largest_income_or_expense":
         result = get_largest_income_or_expense(args.get("year"), int(args.get("month") or 1), args.get("kind") or "cost")
-        return result, None
+        return result, None, None
     if name == "make_monthly_plot":
         result = make_monthly_plot(args.get("year"), args.get("comparison") or "samePeriod")
-        return {"answer": "Här är ett månadsdiagram med jämförelse mot föregående år."}, ChartSpec(**result)
+        return {"answer": "Här är ett månadsdiagram med jämförelse mot föregående år."}, ChartSpec(**result), None
     if name == "analyze_category_over_time":
         result = analyze_category_over_time(
             str(args.get("category_query") or ""),
@@ -225,11 +247,11 @@ def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[
             args.get("chart") or "monthly",
         )
         chart = ChartSpec(**result["chart"]) if result.get("chart") else None
-        return result, chart
+        return result, chart, None
     if name == "analyze_metric_changes":
         result = analyze_metric_changes(args.get("year"), args.get("comparison") or "samePeriod", args.get("metric") or "income")
         chart = ChartSpec(**result["chart"]) if result.get("chart") else None
-        return result, chart
+        return result, chart, None
     if name == "analyze_query_totals":
         result = analyze_query_totals(
             str(args.get("query") or ""),
@@ -238,13 +260,21 @@ def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[
             args.get("kind"),
         )
         chart = ChartSpec(**result["chart"]) if result.get("chart") else None
-        return result, chart
+        return result, chart, None
+    if name == "list_accounts_for_query":
+        result = list_accounts_for_query(str(args.get("query") or ""), args.get("year"), args.get("kind"))
+        table = TableSpec(**result["table"]) if result.get("table") else None
+        return result, None, table
+    if name == "compare_query_table":
+        result = compare_query_table(str(args.get("query") or ""), args.get("year"), args.get("kind"))
+        table = TableSpec(**result["table"]) if result.get("table") else None
+        return result, None, table
     if name == "make_difference_plot":
         result = make_difference_plot(args.get("year"), args.get("comparison") or "samePeriod", args.get("metric") or "result")
         chart = ChartSpec(**result["chart"]) if result.get("chart") else None
-        return result, chart
+        return result, chart, None
     result = get_category_changes(args.get("year"), args.get("comparison") or "samePeriod", int(args.get("limit") or 8))
-    return result, None
+    return result, None, None
 
 
 def synthesize_answer(user_message: str, result: Dict[str, Any], history: List[ChatMessage]) -> Tuple[str, str]:
@@ -266,11 +296,12 @@ def synthesize_answer(user_message: str, result: Dict[str, Any], history: List[C
 def answer_chat(message: str, history: List[ChatMessage]) -> ChatResponse:
     plan = llm_plan(message, history) or deterministic_plan(message)
     tool_name, args = plan
-    result, chart = run_tool(tool_name, args)
+    result, chart, table = run_tool(tool_name, args)
     answer, source = synthesize_answer(message, result, history)
     return ChatResponse(
         answer=answer,
         tool_calls=[ToolCall(name=tool_name, args=args, result=result)],
         chart=chart,
+        table=table,
         source=source,  # type: ignore[arg-type]
     )

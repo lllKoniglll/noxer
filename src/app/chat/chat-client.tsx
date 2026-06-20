@@ -23,10 +23,17 @@ type ChartSpec = {
   };
 };
 
+type TableSpec = {
+  title: string;
+  columns: string[];
+  rows: Record<string, unknown>[];
+};
+
 type ChatResponse = {
   answer: string;
   tool_calls: ToolCall[];
   chart?: ChartSpec | null;
+  table?: TableSpec | null;
   source: "ollama" | "deterministic";
 };
 
@@ -91,6 +98,43 @@ function PlotlyChart({ chart }: { chart: ChartSpec }) {
   );
 }
 
+function formatCell(value: unknown) {
+  if (typeof value === "number") {
+    if (Number.isInteger(value)) return value.toLocaleString("sv-SE");
+    return Math.round(value).toLocaleString("sv-SE");
+  }
+  if (value === null || value === undefined) return "";
+  return String(value);
+}
+
+function ResultTable({ table }: { table: TableSpec }) {
+  return (
+    <section className={styles.chatTable}>
+      <h3>{table.title}</h3>
+      <div>
+        <table>
+          <thead>
+            <tr>
+              {table.columns.map((column) => (
+                <th key={column}>{column}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, index) => (
+              <tr key={index}>
+                {table.columns.map((column) => (
+                  <td key={column}>{formatCell(row[column])}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 export function ChatClient() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -103,6 +147,7 @@ export function ChatClient() {
   const [loading, setLoading] = useState(false);
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [chart, setChart] = useState<ChartSpec | null>(null);
+  const [table, setTable] = useState<TableSpec | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -128,6 +173,7 @@ export function ChatClient() {
       setMessages([...nextMessages, { role: "assistant", content: payload.answer }]);
       setToolCalls(payload.tool_calls ?? []);
       setChart(payload.chart ?? null);
+      setTable(payload.table ?? null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Kunde inte kontakta agenten");
     } finally {
@@ -161,6 +207,14 @@ export function ChatClient() {
               <PlotlyChart chart={chart} />
             </article>
           ) : null}
+          {table ? (
+            <article className={styles.agentChartMessage}>
+              <span>
+                <Bot size={16} />
+              </span>
+              <ResultTable table={table} />
+            </article>
+          ) : null}
         </div>
 
         <form className={styles.chatComposer} onSubmit={submit}>
@@ -181,7 +235,7 @@ export function ChatClient() {
       <aside className={styles.toolPanel}>
         <section>
           <h2>Agentverktyg</h2>
-          <p>Agenten kan slå upp största intäkt/utgift, kategoriavvikelser och skapa interaktiva Plotly-diagram.</p>
+          <p>Agenten kan slå upp största intäkt/utgift, kategoriavvikelser, SQL-baserade tabeller och interaktiva Plotly-diagram.</p>
         </section>
         {toolCalls.length ? (
           <section className={styles.toolCallList}>

@@ -24,8 +24,15 @@ class ChartSpec(BaseModel):
     plotly: Dict[str, Any]
 
 
+class TableSpec(BaseModel):
+    title: str
+    columns: List[str]
+    rows: List[Dict[str, Any]]
+
+
 class ChatResponse(BaseModel):
     answer: str
     tool_calls: List[ToolCall] = Field(default_factory=list)
     chart: Optional[ChartSpec] = None
+    table: Optional[TableSpec] = None
     source: Literal["ollama", "deterministic"] = "deterministic"

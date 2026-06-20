@@ -623,6 +623,51 @@
   overflow: hidden;
 }
 
+.chatTable {
+  background: var(--panel-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  width: 100%;
+}
+
+.chatTable h3 {
+  margin: 0;
+}
+
+.chatTable > div {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.chatTable table {
+  border-collapse: collapse;
+  min-width: 720px;
+  width: 100%;
+}
+
+.chatTable th,
+.chatTable td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.chatTable th {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.chatTable td {
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 940px) {
   .shell {
     grid-template-columns: 1fr;
