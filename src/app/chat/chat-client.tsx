@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Bot, Send, UserRound } from "lucide-react";
+import { SortableTable, type SortableTableColumn } from "@/app/sortable-table";
 import styles from "../page.module.css";
 
 type ChatMessage = {
@@ -98,41 +99,27 @@ function PlotlyChart({ chart }: { chart: ChartSpec }) {
   );
 }
 
-function formatCell(value: unknown) {
-  if (typeof value === "number") {
-    if (Number.isInteger(value)) return value.toLocaleString("sv-SE");
-    return Math.round(value).toLocaleString("sv-SE");
-  }
-  if (value === null || value === undefined) return "";
-  return String(value);
+function isAmountColumn(column: string) {
+  const normalized = column.toLowerCase();
+  return ["belopp", "amount", "summa", "nuvarande", "foregaende", "föregående", "skillnad", "månadsbelopp"].some((part) =>
+    normalized.includes(part)
+  );
+}
+
+function isCountColumn(column: string) {
+  const normalized = column.toLowerCase();
+  return ["rader", "antal", "transaktioner"].some((part) => normalized.includes(part));
 }
 
 function ResultTable({ table }: { table: TableSpec }) {
-  return (
-    <section className={styles.chatTable}>
-      <h3>{table.title}</h3>
-      <div>
-        <table>
-          <thead>
-            <tr>
-              {table.columns.map((column) => (
-                <th key={column}>{column}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {table.rows.map((row, index) => (
-              <tr key={index}>
-                {table.columns.map((column) => (
-                  <td key={column}>{formatCell(row[column])}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+  const columns: SortableTableColumn[] = table.columns.map((column) => ({
+    key: column,
+    label: column,
+    format: isAmountColumn(column) ? "thousands" : isCountColumn(column) ? "integer" : "text",
+    summable: isAmountColumn(column) || isCountColumn(column)
+  }));
+
+  return <SortableTable columns={columns} rows={table.rows} title={table.title} />;
 }
 
 export function ChatClient() {
@@ -191,20 +178,6 @@ export function ChatClient() {
               <p>{message.content}</p>
             </article>
           ))}
-          {loading ? (
-            <article className={styles.agentMessage}>
-              <span>
-                <Bot size={16} />
-              </span>
-              <div className={styles.thinkingBubble} aria-live="polite">
-                <span className={styles.spinner} aria-hidden="true" />
-                <div>
-                  <strong>Ollama analyserar frågan</strong>
-                  <small>Skapar SQL, kör mot SIE-databasen och bygger svaret...</small>
-                </div>
-              </div>
-            </article>
-          ) : null}
           {chart ? (
             <article className={styles.agentChartMessage}>
               <span>
@@ -222,6 +195,16 @@ export function ChatClient() {
             </article>
           ) : null}
         </div>
+
+        {loading ? (
+          <div className={styles.composerStatus} aria-live="polite">
+            <span className={styles.spinner} aria-hidden="true" />
+            <div>
+              <strong>Ollama analyserar frågan</strong>
+              <small>Skapar SQL, kör mot SIE-databasen och bygger svaret...</small>
+            </div>
+          </div>
+        ) : null}
 
         <form className={styles.chatComposer} onSubmit={submit}>
           <input

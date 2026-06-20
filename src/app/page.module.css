@@ -553,6 +553,25 @@
   width: 22px;
 }
 
+.composerStatus {
+  align-items: center;
+  background: #eef5f1;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.composerStatus strong {
+  display: block;
+}
+
+.composerStatus small {
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
+
 .agentChartMessage {
   max-width: min(920px, 100%);
   width: 100%;
@@ -663,14 +682,30 @@
   width: 100%;
 }
 
-.chatTable h3 {
+.tableHeader {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.tableHeader h3 {
   margin: 0;
 }
 
-.chatTable > div {
+.tableHeader input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 36px;
+  min-width: 220px;
+  padding: 0 10px;
+}
+
+.tableScroll {
   background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 8px;
+  min-width: 0;
   overflow-x: auto;
 }
 
@@ -694,8 +729,42 @@
   font-weight: 700;
 }
 
+.chatTable th button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-weight: 700;
+  gap: 6px;
+  padding: 0;
+}
+
 .chatTable td {
   font-variant-numeric: tabular-nums;
+}
+
+.chatTable tfoot td {
+  background: #f4f7f5;
+  border-bottom: 0;
+  border-top: 2px solid var(--line);
+  font-weight: 800;
+}
+
+.incomeText {
+  color: var(--income);
+  font-weight: 700;
+}
+
+.costText {
+  color: var(--cost);
+  font-weight: 700;
+}
+
+.totalAmount {
+  font-weight: 900;
 }
 
 @keyframes spin {
@@ -756,6 +825,16 @@
 
   .actions {
     display: grid;
+  }
+
+  .tableHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .tableHeader input {
+    min-width: 0;
+    width: 100%;
   }
 
   .comparisonControl {

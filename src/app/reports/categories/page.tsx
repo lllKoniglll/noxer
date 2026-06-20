@@ -1,11 +1,11 @@
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
+import { SortableTable } from "@/app/sortable-table";
 import {
   buildCategorySummary,
   comparisonCutoffDate,
   comparisonModeLabel,
   formatSieDate,
-  formatThousands,
   getAvailableYears,
   loadAccountingDataset,
   parseComparisonMode
@@ -17,6 +17,8 @@ function percentChange(current: number, previous: number): string {
   const change = ((current - previous) / Math.abs(previous)) * 100;
   return `${change >= 0 ? "+" : ""}${Math.round(change)}%`;
 }
+
+const INCOME_CATEGORY_IDS = new Set(["fees", "grants", "sales"]);
 
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -90,26 +92,22 @@ export default async function CategoriesReportPage({ searchParams }: PageProps) 
               <h2>Utfall jämfört med {comparisonLabel.toLowerCase()}</h2>
             </div>
           </div>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Kategori</th>
-                <th>{selectedYear}</th>
-                <th>{selectedYear - 1}</th>
-                <th>Förändring</th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((category) => (
-                <tr key={category.id}>
-                  <td>{category.label}</td>
-                  <td>{formatThousands(category.amount)}</td>
-                  <td>{formatThousands(category.previousAmount)}</td>
-                  <td>{percentChange(category.amount, category.previousAmount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <SortableTable
+            columns={[
+              { key: "category", label: "Kategori", format: "text", summable: false },
+              { key: "amount", label: String(selectedYear), format: "thousands" },
+              { key: "previousAmount", label: String(selectedYear - 1), format: "thousands" },
+              { key: "change", label: "Förändring", format: "text", summable: false }
+            ]}
+            rows={categories.map((category) => ({
+              Typ: INCOME_CATEGORY_IDS.has(category.id) ? "Intäkt" : "Kostnad",
+              category: category.label,
+              amount: category.amount,
+              previousAmount: category.previousAmount,
+              change: percentChange(category.amount, category.previousAmount)
+            }))}
+            title="Kategoridata"
+          />
         </article>
       </section>
     </main>

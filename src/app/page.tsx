@@ -1,5 +1,6 @@
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
+import { SortableTable } from "@/app/sortable-table";
 import {
   buildMonthlyReport,
   comparisonCutoffDate,
@@ -193,32 +194,27 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
             ))}
           </div>
 
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Månad</th>
-                <th>Intäkter {selectedYear}</th>
-                <th>Intäkter {selectedYear - 1}</th>
-                <th>Kostnader {selectedYear}</th>
-                <th>Kostnader {selectedYear - 1}</th>
-                <th>Resultat {selectedYear}</th>
-                <th>Resultat {selectedYear - 1}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {monthlyRows.map((row) => (
-                <tr key={row.month}>
-                  <td>{row.label}</td>
-                  <td>{formatThousands(row.income)}</td>
-                  <td>{formatThousands(row.previousYearIncome)}</td>
-                  <td>{formatThousands(row.costs)}</td>
-                  <td>{formatThousands(row.previousYearCosts)}</td>
-                  <td>{formatThousands(row.result)}</td>
-                  <td>{formatThousands(row.previousYearResult)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <SortableTable
+            columns={[
+              { key: "month", label: "Månad", format: "text", summable: false },
+              { key: "income", label: `Intäkter ${selectedYear}`, format: "thousands", tone: "income" },
+              { key: "previousYearIncome", label: `Intäkter ${selectedYear - 1}`, format: "thousands", tone: "income" },
+              { key: "costs", label: `Kostnader ${selectedYear}`, format: "thousands", tone: "cost" },
+              { key: "previousYearCosts", label: `Kostnader ${selectedYear - 1}`, format: "thousands", tone: "cost" },
+              { key: "result", label: `Resultat ${selectedYear}`, format: "thousands", tone: "result" },
+              { key: "previousYearResult", label: `Resultat ${selectedYear - 1}`, format: "thousands", tone: "result" }
+            ]}
+            rows={monthlyRows.map((row) => ({
+              month: row.label,
+              income: row.income,
+              previousYearIncome: row.previousYearIncome,
+              costs: row.costs,
+              previousYearCosts: row.previousYearCosts,
+              result: row.result,
+              previousYearResult: row.previousYearResult
+            }))}
+            title="Månadsdata"
+          />
         </article>
       </section>
     </main>

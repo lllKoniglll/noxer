@@ -1,4 +1,5 @@
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { SortableTable } from "@/app/sortable-table";
 import {
   buildCashForecast,
   formatThousands,
@@ -118,24 +119,19 @@ export default async function LiquidityReportPage({ searchParams }: PageProps) {
               );
             })}
           </div>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Månad</th>
-                <th>Faktiskt saldo</th>
-                <th>Prognos</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cashForecast.map((point) => (
-                <tr key={point.month}>
-                  <td>{point.label}</td>
-                  <td>{point.actual === null ? "" : formatThousands(point.actual)}</td>
-                  <td>{point.forecast === null ? "" : formatThousands(point.forecast)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <SortableTable
+            columns={[
+              { key: "month", label: "Månad", format: "text", summable: false },
+              { key: "actual", label: "Faktiskt saldo", format: "thousands", summable: false, tone: "neutral" },
+              { key: "forecast", label: "Prognos", format: "thousands", summable: false, tone: "neutral" }
+            ]}
+            rows={cashForecast.map((point) => ({
+              month: point.label,
+              actual: point.actual,
+              forecast: point.forecast
+            }))}
+            title="Likviditetsdata"
+          />
         </article>
       </section>
     </main>
