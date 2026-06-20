@@ -3,6 +3,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.agent.ollama_client import chat
+from app.agent.sql_agent import answer_with_sql_agent
 from app.agent.tools import (
     TOOL_DEFINITIONS,
     analyze_category_over_time,
@@ -17,6 +18,7 @@ from app.agent.tools import (
     top_accounts_table,
     transaction_rows_table,
     yearly_query_table,
+    SIE_DIR,
 )
 from app.schemas import ChartSpec, ChatMessage, ChatResponse, TableSpec, ToolCall
 
@@ -412,6 +414,17 @@ def synthesize_answer(user_message: str, result: Dict[str, Any], history: List[C
 
 
 def answer_chat(message: str, history: List[ChatMessage]) -> ChatResponse:
+    sql_agent_result = answer_with_sql_agent(message, history, SIE_DIR)
+    if sql_agent_result:
+        answer, result, chart, table = sql_agent_result
+        return ChatResponse(
+            answer=answer,
+            tool_calls=[ToolCall(name="ollama_sql_agent", args={"message": message}, result=result)],
+            chart=chart,
+            table=table,
+            source="ollama",
+        )
+
     plan = deterministic_plan(message, history)
     if plan[0] == "get_category_changes":
         plan = llm_plan(message, history) or plan

@@ -245,3 +245,4 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 - 2026-06-20: SIE-data normaliseras aven till ett internt SQLite-lager for agentfragor; chatten kan nu visa SQL-baserade tabeller.
 - 2026-06-20: Fragetolkningen styr nu tydligare tabell/diagram-lage och kan ateranvanda tidigare amne for foljdfragor som "visa alla rader".
 - 2026-06-20: Chattens SQL-routing hanterar fler stavfel/ordformer for lagfragor, storsta kostnader och blandade intakter/kostnader i tabell.
+- 2026-06-20: Ollama kopplad som primar SQL-agent med databasschema i prompten; defaultmodell bytt till fungerande `ministral-3:8b`.

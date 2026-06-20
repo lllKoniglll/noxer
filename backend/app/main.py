@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.adk_adapter import adk_status
+from app.agent.ollama_client import status as ollama_status
 from app.agent.service import answer_chat
 from app.agent.tools import TOOL_DEFINITIONS, dataset
 from app.schemas import ChatRequest, ChatResponse
@@ -28,6 +29,7 @@ def health():
         "latest_voucher_date": data.latest_voucher_date,
         "tools": [tool["name"] for tool in TOOL_DEFINITIONS],
         "adk": adk_status(),
+        "ollama": ollama_status(),
     }
 
 

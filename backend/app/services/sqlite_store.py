@@ -89,6 +89,8 @@ def query_rows(connection: sqlite3.Connection, sql: str, parameters: Sequence[An
     lowered = sql.strip().lower()
     if not lowered.startswith("select"):
         raise ValueError("Only SELECT queries are allowed")
+    if ";" in lowered or "--" in lowered or "/*" in lowered:
+        raise ValueError("Query contains a disallowed token")
     if any(token in lowered for token in [" insert ", " update ", " delete ", " drop ", " alter ", " pragma ", " attach "]):
         raise ValueError("Query contains a disallowed statement")
     cursor = connection.execute(sql, parameters)
