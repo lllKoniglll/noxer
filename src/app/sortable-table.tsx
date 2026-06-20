@@ -16,6 +16,7 @@ type SortableTableProps = {
   columns: SortableTableColumn[];
   rows: Record<string, unknown>[];
   filterPlaceholder?: string;
+  wide?: boolean;
 };
 
 function isNumeric(value: unknown): value is number {
@@ -69,7 +70,7 @@ function inferTone(column: SortableTableColumn, row: Record<string, unknown>, ti
   return undefined;
 }
 
-export function SortableTable({ title, columns, rows, filterPlaceholder = "Filtrera tabellen..." }: SortableTableProps) {
+export function SortableTable({ title, columns, rows, filterPlaceholder = "Filtrera tabellen...", wide = false }: SortableTableProps) {
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<{ column: string; direction: "asc" | "desc" } | null>(null);
 
@@ -113,7 +114,7 @@ export function SortableTable({ title, columns, rows, filterPlaceholder = "Filtr
   }
 
   return (
-    <section className={styles.chatTable}>
+    <section className={`${styles.chatTable} ${wide ? styles.wideTable : ""}`}>
       <div className={styles.tableHeader}>
         {title ? <h3>{title}</h3> : <span />}
         <input aria-label={`Filtrera ${title ?? "tabell"}`} onChange={(event) => setFilter(event.target.value)} placeholder={filterPlaceholder} value={filter} />

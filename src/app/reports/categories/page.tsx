@@ -107,6 +107,7 @@ export default async function CategoriesReportPage({ searchParams }: PageProps) 
               change: percentChange(category.amount, category.previousAmount)
             }))}
             title="Kategoridata"
+            wide
           />
         </article>
       </section>

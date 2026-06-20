@@ -214,6 +214,7 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
               previousYearResult: row.previousYearResult
             }))}
             title="Månadsdata"
+            wide
           />
         </article>
       </section>

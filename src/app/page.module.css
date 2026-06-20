@@ -682,6 +682,13 @@
   width: 100%;
 }
 
+.wideTable {
+  border-radius: 0 0 8px 8px;
+  margin: 8px -18px -18px;
+  padding: 14px 18px 18px;
+  width: calc(100% + 36px);
+}
+
 .tableHeader {
   align-items: center;
   display: flex;
@@ -834,6 +841,11 @@
 
   .tableHeader input {
     min-width: 0;
+    width: 100%;
+  }
+
+  .wideTable {
+    margin: 8px 0 0;
     width: 100%;
   }
 

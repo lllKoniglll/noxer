@@ -131,6 +131,7 @@ export default async function LiquidityReportPage({ searchParams }: PageProps) {
               forecast: point.forecast
             }))}
             title="Likviditetsdata"
+            wide
           />
         </article>
       </section>
