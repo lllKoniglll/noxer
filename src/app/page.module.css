@@ -469,7 +469,8 @@
 
 .agentMessage,
 .userMessage,
-.agentChartMessage {
+.agentChartMessage,
+.agentTableMessage {
   align-items: flex-start;
   display: flex;
   gap: 10px;
@@ -482,7 +483,8 @@
 
 .agentMessage > span,
 .userMessage > span,
-.agentChartMessage > span {
+.agentChartMessage > span,
+.agentTableMessage > span {
   align-items: center;
   border-radius: 999px;
   display: flex;
@@ -494,7 +496,8 @@
 }
 
 .agentMessage > span,
-.agentChartMessage > span {
+.agentChartMessage > span,
+.agentTableMessage > span {
   background: #e6f0eb;
   color: var(--accent);
 }
@@ -574,6 +577,13 @@
 
 .agentChartMessage {
   max-width: min(920px, 100%);
+  width: 100%;
+}
+
+.agentTableMessage {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  max-width: 100%;
   width: 100%;
 }
 

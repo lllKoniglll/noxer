@@ -187,7 +187,7 @@ export function ChatClient() {
             </article>
           ) : null}
           {table ? (
-            <article className={styles.agentChartMessage}>
+            <article className={styles.agentTableMessage}>
               <span>
                 <Bot size={16} />
               </span>
