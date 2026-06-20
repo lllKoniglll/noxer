@@ -14,6 +14,7 @@ from app.agent.tools import (
     list_accounts_for_query,
     make_difference_plot,
     make_monthly_plot,
+    top_accounts_table,
     transaction_rows_table,
     yearly_query_table,
 )
@@ -48,8 +49,8 @@ MONTHS = {
 
 
 def extract_year(text: str) -> Optional[int]:
-    match = re.search(r"\b(20\d{2})\b", text)
-    return int(match.group(1)) if match else None
+    years = [int(match) for match in re.findall(r"\b(20\d{2})\b", text)]
+    return max(years) if years else None
 
 
 def extract_month(text: str) -> Optional[int]:
@@ -110,14 +111,19 @@ def extract_category_query(text: str) -> Optional[str]:
 def clean_query_target(candidate: str) -> Optional[str]:
     value = candidate.strip(" ?.,:;")
     value = re.sub(r"\b(i år|i ar|under\s+20\d{2}|över åren|over aren|i en tabell|som tabell|tabell|diagram)\b", "", value, flags=re.IGNORECASE)
-    value = re.sub(r"\b(intäkt|intäkter|intakt|intakter|inträkt|inträkter|itäkt|itäkter|kostnad|kostnader|utgift|utgifter|konton|konto|alla|rader|visa|ge mig|för|från)\b", "", value, flags=re.IGNORECASE)
+    value = re.sub(
+        r"\b(intäkt|intäkter|intakt|intakter|inträkt|inträkter|itäkt|itäkter|kostnad|kostnader|kostand|kostander|utgift|utgifter|konton|konto|alla|rader|visa|ge mig|för|från|relaterat|realterat|till)\b",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    )
     value = " ".join(value.split()).strip(" ?.,:;")
     lower = value.lower()
     if "planyhyr" in lower or "planhyr" in lower or "planhyra" in lower:
         return "planhyr"
-    if "damlag" in lower or "damlaget" in lower:
+    if "damlag" in lower or "damlaget" in lower or "damer" in lower or "damernas" in lower:
         return "dam"
-    if "herrlag" in lower or "herrlaget" in lower:
+    if "herrlag" in lower or "herrlaget" in lower or "herralget" in lower or "herr laget" in lower or "herrar" in lower:
         return "herr"
     return value or None
 
@@ -141,9 +147,13 @@ def extract_query_target(text: str) -> Optional[str]:
         return "lokalhyr"
     if re.search(r"\bdamlaget?\b", text, flags=re.IGNORECASE):
         return "dam"
+    if re.search(r"\bdamernas?\b|\bdamer\b", text, flags=re.IGNORECASE):
+        return "dam"
+    if re.search(r"\bherr\s*laget?\b|\bherrlaget?\b|\bherralget\b|\bherrar\b", text, flags=re.IGNORECASE):
+        return "herr"
 
     metric_target = re.search(
-        r"\b(?:intäkt|intäkter|intakt|intakter|inträkt|inträkter|itäkt|itäkter|kostnad|kostnader|utgift|utgifter)\s+(?:för|från|mot)\s+(.+?)(?:$|\s+i år|\s+i ar|\s+under|\s+över åren|\s+over aren|\s+i en tabell|\s+som tabell|\s+diagram)",
+        r"\b(?:intäkt|intäkter|intakt|intakter|inträkt|inträkter|itäkt|itäkter|kostnad|kostnader|kostand|kostander|utgift|utgifter)\s+(?:för|från|mot|relaterat till|realterat till)\s+(.+?)(?:$|\s+i år|\s+i ar|\s+under|\s+över åren|\s+over aren|\s+i en tabell|\s+som tabell|\s+diagram)",
         text,
         flags=re.IGNORECASE,
     )
@@ -152,7 +162,11 @@ def extract_query_target(text: str) -> Optional[str]:
         if target:
             return target
 
-    subject_target = re.search(r"\bvad har\s+(.+?)\s+haft\s+för\s+(?:kostnad|kostnader|utgift|utgifter|intäkt|intäkter)", text, flags=re.IGNORECASE)
+    subject_target = re.search(
+        r"\bvad har\s+(.+?)\s+haft\s+för\s+(?:kostnad|kostnader|kostand|kostander|utgift|utgifter|intäkt|intäkter)",
+        text,
+        flags=re.IGNORECASE,
+    )
     if subject_target:
         target = clean_query_target(subject_target.group(1))
         if target:
@@ -190,7 +204,18 @@ def deterministic_plan(message: str, history: List[ChatMessage]) -> Tuple[str, D
     wants_rows = any(word in lower for word in ["rader", "raader", "alla rader"])
     wants_yearly = any(word in lower for word in ["över åren", "over aren", "per år", "per ar"])
     mentions_income = any(word in lower for word in ["intäkt", "intakt", "intäkter", "intakter", "inträkt", "inträkter", "itäkt", "itäkter", "inkomst"])
-    mentions_cost = any(word in lower for word in ["kostnad", "kostnader", "utgift", "utgifter"])
+    mentions_cost = any(word in lower for word in ["kostnad", "kostnader", "kostand", "kostander", "utgift", "utgifter"])
+    mentions_both = mentions_income and mentions_cost
+    wants_largest = any(word in lower for word in ["största", "storsta", "högsta", "hogsta"])
+
+    def selected_kind() -> Optional[str]:
+        if mentions_both:
+            return None
+        if mentions_income:
+            return "income"
+        if mentions_cost:
+            return "cost"
+        return None
 
     if not query_target and (wants_table or wants_rows):
         query_target = previous_query_target(history)
@@ -198,29 +223,29 @@ def deterministic_plan(message: str, history: List[ChatMessage]) -> Tuple[str, D
     if query_target and wants_yearly:
         return "yearly_query_table", {
             "query": query_target,
-            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
+            "kind": selected_kind(),
         }
 
     if query_target and wants_rows:
         return "transaction_rows_table", {
             "query": query_target,
             "year": year,
-            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
+            "kind": selected_kind(),
             "limit": 100,
-        }
-
-    if query_target and wants_table:
-        return "list_accounts_for_query", {
-            "query": query_target,
-            "year": year,
-            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
         }
 
     if query_target and wants_difference:
         return "compare_query_table", {
             "query": query_target,
             "year": year,
-            "kind": "income" if mentions_income else "cost" if mentions_cost else None,
+            "kind": selected_kind(),
+        }
+
+    if query_target and wants_table:
+        return "list_accounts_for_query", {
+            "query": query_target,
+            "year": year,
+            "kind": selected_kind(),
         }
 
     if query_target and (mentions_income or mentions_cost):
@@ -228,8 +253,14 @@ def deterministic_plan(message: str, history: List[ChatMessage]) -> Tuple[str, D
             "query": query_target,
             "year": year,
             "comparison": "samePeriod",
-            "kind": "income" if mentions_income else "cost",
+            "kind": "income" if mentions_income and not mentions_cost else "cost",
         }
+
+    if wants_largest and mentions_cost:
+        return "top_accounts_table", {"year": year, "kind": "cost", "limit": 10}
+
+    if wants_largest and mentions_income:
+        return "top_accounts_table", {"year": year, "kind": "income", "limit": 10}
 
     if (mentions_income or mentions_cost) and (wants_change or wants_difference):
         return "analyze_metric_changes", {
@@ -350,6 +381,10 @@ def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[
             args.get("kind"),
             int(args.get("limit") or 100),
         )
+        table = TableSpec(**result["table"]) if result.get("table") else None
+        return result, None, table
+    if name == "top_accounts_table":
+        result = top_accounts_table(args.get("year"), args.get("kind") or "cost", int(args.get("limit") or 10))
         table = TableSpec(**result["table"]) if result.get("table") else None
         return result, None, table
     if name == "make_difference_plot":

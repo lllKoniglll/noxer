@@ -231,10 +231,14 @@ def list_accounts_for_query(query: str, year: Optional[int], kind: Optional[str]
     parameters: List[Any] = [selected_year, *match_parameters]
     if selected_kind:
         parameters.append(selected_kind)
+    type_column = "case when kind = 'income' then 'Intäkt' else 'Kostnad' end as Typ," if selected_kind is None else ""
+    type_group = ", kind" if selected_kind is None else ""
+    type_columns = ["Typ"] if selected_kind is None else []
     rows = query_rows(
         connection,
         f"""
         select
+            {type_column}
             account as Konto,
             account_name as Kontonamn,
             category_label as Kategori,
@@ -250,7 +254,7 @@ def list_accounts_for_query(query: str, year: Optional[int], kind: Optional[str]
             or search_acronym like ?
           )
           {where_kind}
-        group by account, account_name, category_label
+        group by account, account_name, category_label {type_group}
         having abs(sum(amount)) > 0.004
         order by abs(sum(amount)) desc
         limit 50
@@ -269,7 +273,7 @@ def list_accounts_for_query(query: str, year: Optional[int], kind: Optional[str]
         "year": selected_year,
         "kind": selected_kind,
         "answer": answer,
-        "table": _table(f"{kind_label.capitalize()} för {query}", ["Konto", "Kontonamn", "Kategori", "Belopp", "Rader"], rows),
+        "table": _table(f"{kind_label.capitalize()} för {query}", [*type_columns, "Konto", "Kontonamn", "Kategori", "Belopp", "Rader"], rows),
     }
 
 
@@ -444,6 +448,40 @@ def transaction_rows_table(query: str, year: Optional[int], kind: Optional[str] 
             ["Datum", "Ver", "Konto", "Kontonamn", "Kategori", "Text", "Belopp"],
             rows,
         ),
+    }
+
+
+def top_accounts_table(year: Optional[int], kind: str = "cost", limit: int = 10) -> Dict[str, Any]:
+    data = dataset()
+    selected_year = latest_year(data, year)
+    selected_kind = "income" if kind == "income" else "cost"
+    connection = build_connection(data)
+    rows = query_rows(
+        connection,
+        """
+        select
+            account as Konto,
+            account_name as Kontonamn,
+            category_label as Kategori,
+            round(sum(amount), 2) as Belopp,
+            count(*) as Rader
+        from transactions
+        where year = ?
+          and kind = ?
+        group by account, account_name, category_label
+        having abs(sum(amount)) > 0.004
+        order by sum(amount) desc
+        limit ?
+        """,
+        [selected_year, selected_kind, limit],
+    )
+    label = "intäkterna" if selected_kind == "income" else "kostnaderna"
+    answer = f"Här är de {len(rows)} största {label} under {selected_year}."
+    return {
+        "year": selected_year,
+        "kind": selected_kind,
+        "answer": answer,
+        "table": _table(f"Största {label} {selected_year}", ["Konto", "Kontonamn", "Kategori", "Belopp", "Rader"], rows),
     }
 
 
@@ -655,6 +693,11 @@ TOOL_DEFINITIONS = [
         "name": "transaction_rows_table",
         "description": "Visa alla matchande transaktionsrader i tabell för en söktext.",
         "parameters": {"query": "string", "year": "number|null", "kind": "income|cost|null", "limit": "number"},
+    },
+    {
+        "name": "top_accounts_table",
+        "description": "Visa en tabell med största intäkts- eller kostnadskonton för året.",
+        "parameters": {"year": "number|null", "kind": "income|cost", "limit": "number"},
     },
     {
         "name": "analyze_category_over_time",
