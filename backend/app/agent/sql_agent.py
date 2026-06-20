@@ -44,7 +44,11 @@ Important domain rules:
 - If user asks "under 2026", filter year = 2026.
 - If user does not give a year, prefer the latest year for "i år" questions, otherwise include all relevant years for overview tables.
 - For table questions, return a compact grouped table unless user asks for alla rader.
-- For "alla rader", return transaction rows with date, voucher, account, account_name, description, amount.
+- If the current user question is a short follow-up like "visa som diagram", "gör diagram", or "visa tabell", preserve the latest relevant filters, year, grouping, and search term from the recent conversation context.
+- If the previous request was månadsvis/monthly and the current request asks for diagram, keep GROUP BY month and SELECT month plus SUM(amount).
+- For "månadsvis" or "per månad", SELECT month AS 'Månad', SUM(amount) AS 'Belopp', COUNT(*) AS 'Rader', GROUP BY month, ORDER BY month.
+- For "alla rader", "enskilda rader", "transaktioner", or "verifikationer", return transaction rows and ALWAYS include date AS 'Datum' as the first selected column, plus voucher, account, account_name, description, amount.
+- For any row-level table, the result must include a visible Datum/date column.
 - Always include LIMIT 100 or less.
 """
 
@@ -68,6 +72,17 @@ def _extract_json(text: str) -> Optional[Dict[str, Any]]:
 def _is_chart_request(message: str) -> bool:
     lower = message.lower()
     return any(word in lower for word in ["diagram", "graf", "plot", "chart"])
+
+
+def _is_row_level_request(message: str) -> bool:
+    lower = message.lower()
+    return any(word in lower for word in ["alla rader", "enskilda rader", "rader", "raader", "transaktioner", "verifikationer"])
+
+
+def _has_date_column(rows: List[Dict[str, Any]]) -> bool:
+    if not rows:
+        return True
+    return any(column.lower() in {"datum", "date"} for column in rows[0].keys())
 
 
 def _chart_from_rows(title: str, rows: List[Dict[str, Any]]) -> Optional[ChartSpec]:
@@ -143,6 +158,9 @@ def answer_with_sql_agent(message: str, history: List[ChatMessage], sie_dir) -> 
         f"{SCHEMA_DESCRIPTION}\n\n"
         f"Senaste samtalskontext:\n{recent_context or '(ingen)'}\n\n"
         f"Fråga: {message}\n\n"
+        "Om frågan är en uppföljning, använd senaste relevanta användarfrågan som kontext. "
+        "Om svaret ska vara diagram, skapa SQL med samma gruppering som tabellen borde ha haft. "
+        "Om frågan ber om enskilda rader måste Datum finnas i SELECT.\n\n"
         "Returnera JSON nu."
     )
     content = chat([{"role": "system", "content": system}, {"role": "user", "content": user}])
@@ -165,6 +183,8 @@ def answer_with_sql_agent(message: str, history: List[ChatMessage], sie_dir) -> 
             None,
             None,
         )
+    if _is_row_level_request(message) and not _has_date_column(rows):
+        return None
 
     table = None if _is_chart_request(message) else TableSpec(title=title, columns=list(rows[0].keys()) if rows else [], rows=rows)
     chart = _chart_from_rows(title, rows) if _is_chart_request(message) else None
