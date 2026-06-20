@@ -1,4 +1,4 @@
-import { BarChart3, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
 import {
   buildCategorySummary,
@@ -55,6 +55,10 @@ export default async function CategoriesReportPage({ searchParams }: PageProps) 
           <a className={styles.active} href="/reports/categories">
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
+          </a>
+          <a href="/chat">
+            <Bot size={18} aria-hidden="true" />
+            Chat
           </a>
         </nav>
       </aside>

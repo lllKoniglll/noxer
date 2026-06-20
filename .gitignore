@@ -5,6 +5,10 @@ out/
 dist/
 coverage/
 *.tsbuildinfo
+.pycache/
+__pycache__/
+.venv/
+backend/.venv/
 .env
 .env.*
 !.env.example

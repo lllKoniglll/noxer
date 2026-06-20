@@ -1,0 +1,167 @@
+from dataclasses import dataclass
+from typing import Dict, Iterable, List, Literal, Optional, Tuple
+
+from app.services.sie_parser import AccountingDataset, Transaction, Voucher
+
+
+MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"]
+ComparisonMode = Literal["fullYear", "samePeriod"]
+
+CATEGORIES: List[Tuple[str, str, List[str]]] = [
+    ("fees", "Medlems- och träningsavgifter", ["301", "305", "361"]),
+    ("grants", "Bidrag och sponsring", ["321", "371", "372", "3812"]),
+    ("sales", "Kiosk, café och försäljning", ["331", "332", "333", "351", "3814", "451"]),
+    ("events", "Cuper och arrangemang", ["3811", "3815", "4055", "415", "431", "432", "481"]),
+    ("facilities", "Planer, lokal och arena", ["4058", "501", "507", "582"]),
+    ("football", "Domare, licenser och tävling", ["4053", "4063", "4068"]),
+    ("people", "Personal och arvoden", ["641", "700", "701", "711", "741", "751", "753"]),
+    ("admin", "Administration, IT och bank", ["611", "621", "623", "653", "657", "831"]),
+    ("other", "Övrigt", []),
+]
+
+
+@dataclass
+class MonthlyRow:
+    month: int
+    label: str
+    income: float = 0
+    costs: float = 0
+    previous_income: float = 0
+    previous_costs: float = 0
+
+    @property
+    def result(self) -> float:
+        return self.income - self.costs
+
+    @property
+    def previous_result(self) -> float:
+        return self.previous_income - self.previous_costs
+
+
+def year_from_date(date: str) -> int:
+    return int(date[:4])
+
+
+def month_from_date(date: str) -> int:
+    return int(date[4:6])
+
+
+def normalize_year(dataset: AccountingDataset, year: Optional[int]) -> int:
+    if year:
+        return year
+    years = sorted({year_from_date(voucher.date) for voucher in dataset.vouchers})
+    return years[-1] if years else 2026
+
+
+def latest_date_for_year(dataset: AccountingDataset, year: int) -> Optional[str]:
+    dates = [voucher.date for voucher in dataset.vouchers if year_from_date(voucher.date) == year]
+    return max(dates) if dates else None
+
+
+def previous_cutoff(dataset: AccountingDataset, year: int, comparison: ComparisonMode) -> Optional[str]:
+    if comparison == "fullYear":
+        return None
+    latest = latest_date_for_year(dataset, year)
+    return f"{year - 1}{latest[4:]}" if latest else None
+
+
+def result_kind(transaction: Transaction) -> Optional[str]:
+    if transaction.account.startswith("3"):
+        return "income"
+    if transaction.account[:1] in {"4", "5", "6", "7", "8"}:
+        return "cost"
+    return None
+
+
+def category_for_account(account: str) -> Tuple[str, str]:
+    for category_id, label, prefixes in CATEGORIES:
+        if prefixes and any(account.startswith(prefix) for prefix in prefixes):
+            return category_id, label
+    return "other", "Övrigt"
+
+
+def vouchers_for_years(dataset: AccountingDataset, year: int, comparison: ComparisonMode) -> Iterable[Voucher]:
+    cutoff = previous_cutoff(dataset, year, comparison)
+    for voucher in dataset.vouchers:
+        voucher_year = year_from_date(voucher.date)
+        if voucher_year not in {year, year - 1}:
+            continue
+        if voucher_year == year - 1 and cutoff and voucher.date > cutoff:
+            continue
+        yield voucher
+
+
+def monthly_report(dataset: AccountingDataset, year: Optional[int] = None, comparison: ComparisonMode = "fullYear") -> List[MonthlyRow]:
+    selected_year = normalize_year(dataset, year)
+    rows = {index + 1: MonthlyRow(month=index + 1, label=label) for index, label in enumerate(MONTH_LABELS)}
+
+    for voucher in vouchers_for_years(dataset, selected_year, comparison):
+        voucher_year = year_from_date(voucher.date)
+        row = rows[month_from_date(voucher.date)]
+        for transaction in voucher.transactions:
+            kind = result_kind(transaction)
+            if kind is None:
+                continue
+            amount = -transaction.amount if kind == "income" else transaction.amount
+            if voucher_year == selected_year and kind == "income":
+                row.income += amount
+            elif voucher_year == selected_year and kind == "cost":
+                row.costs += amount
+            elif kind == "income":
+                row.previous_income += amount
+            else:
+                row.previous_costs += amount
+
+    return list(rows.values())
+
+
+def category_report(dataset: AccountingDataset, year: Optional[int] = None, comparison: ComparisonMode = "fullYear") -> List[Dict[str, float]]:
+    selected_year = normalize_year(dataset, year)
+    rows: Dict[str, Dict[str, float]] = {
+        category_id: {"id": category_id, "label": label, "amount": 0.0, "previous_amount": 0.0}
+        for category_id, label, _ in CATEGORIES
+    }
+
+    for voucher in vouchers_for_years(dataset, selected_year, comparison):
+        voucher_year = year_from_date(voucher.date)
+        for transaction in voucher.transactions:
+            kind = result_kind(transaction)
+            if kind is None:
+                continue
+            category_id, _ = category_for_account(transaction.account)
+            amount = -transaction.amount if kind == "income" else transaction.amount
+            if voucher_year == selected_year:
+                rows[category_id]["amount"] += amount
+            else:
+                rows[category_id]["previous_amount"] += amount
+
+    return sorted(rows.values(), key=lambda row: abs(row["amount"]), reverse=True)
+
+
+def transactions_for_month(dataset: AccountingDataset, year: int, month: int, kind: Optional[str] = None) -> List[Dict[str, object]]:
+    rows: List[Dict[str, object]] = []
+    for voucher in dataset.vouchers:
+        if year_from_date(voucher.date) != year or month_from_date(voucher.date) != month:
+            continue
+        for transaction in voucher.transactions:
+            transaction_kind = result_kind(transaction)
+            if transaction_kind is None or (kind and transaction_kind != kind):
+                continue
+            amount = -transaction.amount if transaction_kind == "income" else transaction.amount
+            account = dataset.accounts.get(transaction.account)
+            rows.append(
+                {
+                    "date": voucher.date,
+                    "voucher": f"{voucher.series}{voucher.number}",
+                    "description": voucher.text,
+                    "account": transaction.account,
+                    "account_name": account.name if account else transaction.account,
+                    "kind": transaction_kind,
+                    "amount": amount,
+                }
+            )
+    return sorted(rows, key=lambda row: abs(float(row["amount"])), reverse=True)
+
+
+def format_tkr(value: float) -> str:
+    return f"{round(value / 1000):,}".replace(",", " ") + " tkr"

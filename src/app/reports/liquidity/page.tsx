@@ -1,4 +1,4 @@
-import { BarChart3, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import {
   buildCashForecast,
   formatThousands,
@@ -46,6 +46,10 @@ export default async function LiquidityReportPage({ searchParams }: PageProps) {
           <a href={`/reports/categories${comparisonQuery}`}>
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
+          </a>
+          <a href="/chat">
+            <Bot size={18} aria-hidden="true" />
+            Chat
           </a>
         </nav>
       </aside>
