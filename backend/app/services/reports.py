@@ -1,3 +1,4 @@
+import unicodedata
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Literal, Optional, Tuple
 
@@ -18,6 +19,18 @@ CATEGORIES: List[Tuple[str, str, List[str]]] = [
     ("admin", "Administration, IT och bank", ["611", "621", "623", "653", "657", "831"]),
     ("other", "Övrigt", []),
 ]
+
+CATEGORY_ALIASES: Dict[str, List[str]] = {
+    "fees": ["avgift", "medlem", "träning", "traning"],
+    "grants": ["bidrag", "sponsor", "sponsring"],
+    "sales": ["kiosk", "cafe", "café", "försäljning", "forsaljning"],
+    "events": ["cup", "cuper", "arrangemang", "event"],
+    "facilities": ["plan", "planer", "lokal", "arena", "hyra"],
+    "football": ["domare", "licens", "licenser", "tävling", "tavling", "fotboll"],
+    "people": ["personal", "arvode", "arvoden", "lön", "lon", "löner", "loner"],
+    "admin": ["administration", "admin", "it", "bank"],
+    "other": ["övrigt", "ovrigt"],
+}
 
 
 @dataclass
@@ -44,6 +57,11 @@ def year_from_date(date: str) -> int:
 
 def month_from_date(date: str) -> int:
     return int(date[4:6])
+
+
+def normalize_text(value: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", value.lower())
+    return "".join(character for character in decomposed if not unicodedata.combining(character))
 
 
 def normalize_year(dataset: AccountingDataset, year: Optional[int]) -> int:
@@ -78,6 +96,25 @@ def category_for_account(account: str) -> Tuple[str, str]:
         if prefixes and any(account.startswith(prefix) for prefix in prefixes):
             return category_id, label
     return "other", "Övrigt"
+
+
+def category_label(category_id: str) -> str:
+    for current_id, label, _ in CATEGORIES:
+        if current_id == category_id:
+            return label
+    return "Övrigt"
+
+
+def match_category(query: str) -> Optional[Tuple[str, str]]:
+    normalized_query = normalize_text(query)
+    for category_id, label, _ in CATEGORIES:
+        label_match = normalize_text(label)
+        aliases = [normalize_text(alias) for alias in CATEGORY_ALIASES.get(category_id, [])]
+        if category_id in normalized_query or label_match in normalized_query:
+            return category_id, label
+        if any(alias in normalized_query for alias in aliases):
+            return category_id, label
+    return None
 
 
 def vouchers_for_years(dataset: AccountingDataset, year: int, comparison: ComparisonMode) -> Iterable[Voucher]:
@@ -136,6 +173,68 @@ def category_report(dataset: AccountingDataset, year: Optional[int] = None, comp
                 rows[category_id]["previous_amount"] += amount
 
     return sorted(rows.values(), key=lambda row: abs(row["amount"]), reverse=True)
+
+
+def category_monthly_report(
+    dataset: AccountingDataset,
+    category_query: str,
+    year: Optional[int] = None,
+    comparison: ComparisonMode = "samePeriod",
+) -> Dict[str, object]:
+    selected_year = normalize_year(dataset, year)
+    matched = match_category(category_query)
+    rows = {
+        index + 1: {
+            "month": index + 1,
+            "label": label,
+            "amount": 0.0,
+            "previous_amount": 0.0,
+            "accounts": {},
+        }
+        for index, label in enumerate(MONTH_LABELS)
+    }
+
+    for voucher in vouchers_for_years(dataset, selected_year, comparison):
+        voucher_year = year_from_date(voucher.date)
+        row = rows[month_from_date(voucher.date)]
+        for transaction in voucher.transactions:
+            kind = result_kind(transaction)
+            if kind is None:
+                continue
+            transaction_category_id, transaction_category_label = category_for_account(transaction.account)
+            account = dataset.accounts.get(transaction.account)
+            account_name = account.name if account else transaction.account
+            account_text = normalize_text(f"{transaction.account} {account_name} {transaction.text}")
+            query_text = normalize_text(category_query)
+
+            if matched:
+                include = transaction_category_id == matched[0]
+                selected_label = matched[1]
+            else:
+                include = query_text in account_text
+                selected_label = category_query
+            if not include:
+                continue
+
+            amount = -transaction.amount if kind == "income" else transaction.amount
+            target = "amount" if voucher_year == selected_year else "previous_amount"
+            row[target] = float(row[target]) + amount
+            accounts: Dict[str, float] = row["accounts"]  # type: ignore[assignment]
+            accounts[account_name] = accounts.get(account_name, 0.0) + amount
+
+    monthly_rows = list(rows.values())
+    totals = {
+        "amount": sum(float(row["amount"]) for row in monthly_rows),
+        "previous_amount": sum(float(row["previous_amount"]) for row in monthly_rows),
+    }
+    return {
+        "category_id": matched[0] if matched else None,
+        "label": matched[1] if matched else category_query,
+        "year": selected_year,
+        "comparison": comparison,
+        "rows": monthly_rows,
+        "totals": totals,
+    }
 
 
 def transactions_for_month(dataset: AccountingDataset, year: int, month: int, kind: Optional[str] = None) -> List[Dict[str, object]]:

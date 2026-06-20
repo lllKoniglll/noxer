@@ -5,8 +5,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.agent.ollama_client import chat
 from app.agent.tools import (
     TOOL_DEFINITIONS,
+    analyze_category_over_time,
     get_category_changes,
     get_largest_income_or_expense,
+    make_difference_plot,
     make_monthly_plot,
 )
 from app.schemas import ChartSpec, ChatMessage, ChatResponse, ToolCall
@@ -56,11 +58,78 @@ def extract_month(text: str) -> Optional[int]:
     return None
 
 
+def extract_category_query(text: str) -> Optional[str]:
+    lower = text.lower()
+    category_terms = [
+        "personal",
+        "arvode",
+        "arvoden",
+        "lön",
+        "löner",
+        "lon",
+        "loner",
+        "lokal",
+        "hyra",
+        "plan",
+        "arena",
+        "it",
+        "bank",
+        "admin",
+        "administration",
+        "kiosk",
+        "cafe",
+        "café",
+        "försäljning",
+        "forsaljning",
+        "bidrag",
+        "sponsor",
+        "medlem",
+        "avgift",
+        "träning",
+        "traning",
+        "cup",
+        "cuper",
+        "arrangemang",
+        "domare",
+        "licens",
+        "fotboll",
+    ]
+    for term in category_terms:
+        if re.search(rf"\b{re.escape(term)}", lower):
+            return term
+    quoted = re.search(r'"([^"]+)"', text)
+    return quoted.group(1) if quoted else None
+
+
 def deterministic_plan(message: str) -> Tuple[str, Dict[str, Any]]:
     lower = message.lower()
     year = extract_year(message)
+    category_query = extract_category_query(message)
+    wants_difference = any(word in lower for word in ["skillnad", "skillnader", "avvikelse", "avvikelser", "jämför", "jamfor"])
+    wants_chart = any(word in lower for word in ["diagram", "graf", "plot", "visa", "fördelat", "fordelat", "över året", "over aret"])
 
-    if any(word in lower for word in ["diagram", "graf", "plot", "visa"]):
+    if category_query and (
+        wants_chart
+        or wants_difference
+        or any(word in lower for word in ["ökat", "okat", "dyrare", "billigare", "dragit", "förändrats", "forandrats", "analys", "analysera"])
+    ):
+        return "analyze_category_over_time", {
+            "category_query": category_query,
+            "year": year,
+            "comparison": "samePeriod",
+            "chart": "difference" if wants_difference else "monthly",
+        }
+
+    if wants_difference and wants_chart:
+        if any(word in lower for word in ["intäkt", "intakt", "inkomst"]):
+            metric = "income"
+        elif any(word in lower for word in ["kostnad", "utgift"]):
+            metric = "cost"
+        else:
+            metric = "result"
+        return "make_difference_plot", {"year": year, "comparison": "samePeriod", "metric": metric}
+
+    if wants_chart:
         return "make_monthly_plot", {"year": year, "comparison": "samePeriod"}
 
     month = extract_month(message)
@@ -103,6 +172,19 @@ def run_tool(name: str, args: Dict[str, Any]) -> Tuple[Dict[str, Any], Optional[
     if name == "make_monthly_plot":
         result = make_monthly_plot(args.get("year"), args.get("comparison") or "samePeriod")
         return {"answer": "Här är ett månadsdiagram med jämförelse mot föregående år."}, ChartSpec(**result)
+    if name == "analyze_category_over_time":
+        result = analyze_category_over_time(
+            str(args.get("category_query") or ""),
+            args.get("year"),
+            args.get("comparison") or "samePeriod",
+            args.get("chart") or "monthly",
+        )
+        chart = ChartSpec(**result["chart"]) if result.get("chart") else None
+        return result, chart
+    if name == "make_difference_plot":
+        result = make_difference_plot(args.get("year"), args.get("comparison") or "samePeriod", args.get("metric") or "result")
+        chart = ChartSpec(**result["chart"]) if result.get("chart") else None
+        return result, chart
     result = get_category_changes(args.get("year"), args.get("comparison") or "samePeriod", int(args.get("limit") or 8))
     return result, None
 
