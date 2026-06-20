@@ -196,7 +196,13 @@ export function ChatClient() {
               <span>
                 <Bot size={16} />
               </span>
-              <p>Analyserar SIE-datan...</p>
+              <div className={styles.thinkingBubble} aria-live="polite">
+                <span className={styles.spinner} aria-hidden="true" />
+                <div>
+                  <strong>Ollama analyserar frågan</strong>
+                  <small>Skapar SQL, kör mot SIE-databasen och bygger svaret...</small>
+                </div>
+              </div>
             </article>
           ) : null}
           {chart ? (

@@ -523,6 +523,36 @@
   color: #ffffff;
 }
 
+.thinkingBubble {
+  align-items: center;
+  background: var(--panel-muted);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  line-height: 1.4;
+  padding: 12px 14px;
+}
+
+.thinkingBubble strong {
+  display: block;
+}
+
+.thinkingBubble small {
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.spinner {
+  animation: spin 0.85s linear infinite;
+  border: 3px solid #d5e3db;
+  border-top-color: var(--accent);
+  border-radius: 999px;
+  flex: 0 0 22px;
+  height: 22px;
+  width: 22px;
+}
+
 .agentChartMessage {
   max-width: min(920px, 100%);
   width: 100%;
@@ -666,6 +696,18 @@
 
 .chatTable td {
   font-variant-numeric: tabular-nums;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
 }
 
 @media (max-width: 940px) {
