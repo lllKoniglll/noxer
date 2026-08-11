@@ -14,7 +14,7 @@ Bygga en modern webbapp som laser SIE4-filer exporterade fran Fortnox och visar 
 - [x] 2025-filen innehaller rakenskapsar 2025 med jamforelse mot 2024.
 - [x] 2026-filen innehaller rakenskapsar 2026 med jamforelse mot 2025 och verifikationer till 2026-06-18.
 - [x] Planfil skapad.
-- [ ] GitHub-repo `claw-fluxweaver.github.io` skapat. Pausat tills vidare.
+- [ ] GitHub-repo `noxer` skapat. Väntar på GitHub-inloggning.
 - [x] Lokal git-repo initialiserad.
 - [x] Lokal appgrund skapad.
 - [x] Anvandarbeslut dokumenterade.
@@ -159,7 +159,7 @@ Forsta versionen kan vara lokal eller enkel webbhosting. Designen ska anda forbe
 ### Fas 0: Repo och grund
 
 - [x] Initiera git lokalt.
-- [ ] Skapa GitHub-repo `claw-fluxweaver.github.io`. Pausat, arbetar lokalt forst.
+- [ ] Skapa GitHub-repo `noxer`. Väntar på GitHub-inloggning.
 - [x] Lagg till `.gitignore` for SIE-filer och byggartefakter.
 - [ ] Skapa Next.js/TypeScript-projekt.
 - [ ] Lagg in grundlayout och designsystem.
