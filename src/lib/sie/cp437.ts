@@ -129,7 +129,7 @@ const CP437_HIGH = [
   "\u00a0"
 ];
 
-export function decodePc8(buffer: Buffer): string {
+export function decodePc8(buffer: Uint8Array): string {
   let output = "";
 
   for (const byte of buffer) {

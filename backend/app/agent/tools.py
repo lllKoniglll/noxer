@@ -1,3 +1,5 @@
+import os
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -10,15 +12,27 @@ from app.services.reports import (
     query_monthly_report,
     transactions_for_month,
 )
-from app.services.sie_parser import load_dataset
+from app.services.sie_parser import AccountingDataset, load_dataset, load_dataset_from_bytes
 from app.services.sqlite_store import build_connection, latest_year, like_pattern, query_rows
 
 
-SIE_DIR = Path(__file__).resolve().parents[3] / "SIE4"
+SIE_DIR = Path(os.getenv("NOXER_SIE_DIR", str(Path(__file__).resolve().parents[3] / "SIE4")))
+REQUEST_DATASET: ContextVar[Optional[AccountingDataset]] = ContextVar("request_dataset", default=None)
 
 
 def dataset():
-    return load_dataset(SIE_DIR)
+    uploaded = REQUEST_DATASET.get()
+    if uploaded is not None:
+        return uploaded
+    return load_dataset(SIE_DIR) if SIE_DIR.exists() else load_dataset_from_bytes([])
+
+
+def set_request_dataset(files: List[tuple[str, bytes]]):
+    return REQUEST_DATASET.set(load_dataset_from_bytes(files))
+
+
+def reset_request_dataset(token) -> None:
+    REQUEST_DATASET.reset(token)
 
 
 def get_largest_income_or_expense(year: Optional[int], month: int, kind: str) -> Dict[str, Any]:

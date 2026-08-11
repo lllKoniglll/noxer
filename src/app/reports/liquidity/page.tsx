@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { SortableTable } from "@/app/sortable-table";
 import {
@@ -5,25 +9,30 @@ import {
   formatThousands,
   getAvailableYears,
   loadAccountingDataset,
+  emptyAccountingDataset,
   parseComparisonMode
 } from "@/lib/reports/accounting";
+import { useUploads } from "@/app/upload-context";
+import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
 
-type PageProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
-
-export default async function LiquidityReportPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const comparisonMode = parseComparisonMode(params?.comparison);
+export default function LiquidityReportPage() {
+  const params = useSearchParams();
+  const { files } = useUploads();
+  const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
+  useEffect(() => { loadAccountingDataset(files).then(setDataset); }, [files]);
+  const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
-  const dataset = await loadAccountingDataset();
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
   const cashForecast = buildCashForecast(dataset, selectedYear);
   const latestActualCash = [...cashForecast].reverse().find((point) => point.actual !== null)?.actual ?? 0;
   const forecastEnd = [...cashForecast].reverse().find((point) => point.forecast !== null)?.forecast;
   const maxCash = Math.max(...cashForecast.map((point) => point.actual ?? point.forecast ?? 0), 1);
+
+  if (!files.length) {
+    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Filerna finns bara i minnet och raderas när sidan stängs.</p></main>;
+  }
 
   return (
     <main className={styles.shell}>

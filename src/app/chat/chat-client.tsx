@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Bot, Send, UserRound } from "lucide-react";
 import { SortableTable, type SortableTableColumn } from "@/app/sortable-table";
+import { useUploads } from "@/app/upload-context";
 import styles from "../page.module.css";
 
 type ChatMessage = {
@@ -47,7 +48,7 @@ declare global {
   }
 }
 
-const API_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://localhost:8001";
+const API_URL = "/api";
 
 function PlotlyChart({ chart }: { chart: ChartSpec }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -123,6 +124,7 @@ function ResultTable({ table }: { table: TableSpec }) {
 }
 
 export function ChatClient() {
+  const { files } = useUploads();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -149,10 +151,12 @@ export function ChatClient() {
     setError(null);
 
     try {
+      const formData = new FormData();
+      formData.append("payload", JSON.stringify({ message, history: messages }));
+      files.forEach((file) => formData.append("files", file, file.name));
       const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, history: messages })
+        body: formData
       });
 
       if (!response.ok) throw new Error(`Backend svarade ${response.status}`);
