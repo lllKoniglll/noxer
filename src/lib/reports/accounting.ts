@@ -122,7 +122,6 @@ export function emptyAccountingDataset(): AccountingDataset {
 export async function loadAccountingDataset(uploadedFiles: File[] = []): Promise<AccountingDataset> {
   const files = await Promise.all(
     uploadedFiles
-      .filter((file) => file.name.toLowerCase().endsWith(".se"))
       .map(async (file) => parseSieBuffer(new Uint8Array(await file.arrayBuffer()), file.name))
   );
 

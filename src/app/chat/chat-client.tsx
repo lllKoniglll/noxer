@@ -137,6 +137,7 @@ export function ChatClient() {
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [chart, setChart] = useState<ChartSpec | null>(null);
   const [table, setTable] = useState<TableSpec | null>(null);
+  const [source, setSource] = useState<ChatResponse["source"] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -165,6 +166,7 @@ export function ChatClient() {
       setToolCalls(payload.tool_calls ?? []);
       setChart(payload.chart ?? null);
       setTable(payload.table ?? null);
+      setSource(payload.source ?? "deterministic");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Kunde inte kontakta agenten");
     } finally {
@@ -229,6 +231,9 @@ export function ChatClient() {
         <section>
           <h2>Agentverktyg</h2>
           <p>Agenten kan slå upp största intäkt/utgift, kategoriavvikelser, SQL-baserade tabeller och interaktiva Plotly-diagram.</p>
+          {source ? (
+            <p role="status">Senaste svarskälla: <strong>{source === "ollama" ? "Ollama" : "lokal fallback"}</strong></p>
+          ) : null}
         </section>
         {toolCalls.length ? (
           <section className={styles.toolCallList}>

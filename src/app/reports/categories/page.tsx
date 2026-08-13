@@ -41,7 +41,7 @@ export default function CategoriesReportPage() {
   const comparisonLabel = comparisonModeLabel(comparisonMode);
 
   if (!files.length) {
-    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Filerna finns bara i minnet och raderas när sidan stängs.</p></main>;
+    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
   }
 
   return (

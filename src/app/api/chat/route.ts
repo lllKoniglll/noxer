@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const AGENT_API_URL = (process.env.AGENT_API_URL ?? "http://backend:8001").replace(/\/$/, "");
+// Docker Compose skriver över detta med http://backend:8001.
+// Vid lokal `npm run dev` körs Next.js på värddatorn, där backend nås via localhost.
+const AGENT_API_URL = (process.env.AGENT_API_URL ?? "http://127.0.0.1:8001").replace(/\/$/, "");
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +21,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Backend kunde inte nås";
-    return NextResponse.json({ detail }, { status: 502 });
+    return NextResponse.json(
+      { detail: `Kunde inte nå agent-backenden på ${AGENT_API_URL}. Starta backend på port 8001. (${detail})` },
+      { status: 502 }
+    );
   }
 }

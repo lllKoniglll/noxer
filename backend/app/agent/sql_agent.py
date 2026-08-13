@@ -3,8 +3,8 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.agent.ollama_client import chat
+from app.agent.tools import dataset
 from app.schemas import ChartSpec, ChatMessage, TableSpec
-from app.services.sie_parser import load_dataset
 from app.services.sqlite_store import build_connection, query_rows
 
 
@@ -143,7 +143,9 @@ def _summarize_rows(title: str, rows: List[Dict[str, Any]]) -> str:
 
 
 def answer_with_sql_agent(message: str, history: List[ChatMessage], sie_dir) -> Optional[Tuple[str, Dict[str, Any], Optional[ChartSpec], Optional[TableSpec]]]:
-    data = load_dataset(sie_dir)
+    # Use the request-scoped uploaded dataset when available. Previously this
+    # always loaded SIE_DIR, so chat could ignore the files selected in the UI.
+    data = dataset()
     recent_context = "\n".join(f"{item.role}: {item.content}" for item in history[-6:])
     system = (
         "Du är en SQL-analytiker för Kronängs IF. "
