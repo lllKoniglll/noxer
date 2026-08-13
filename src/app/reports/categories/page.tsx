@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
@@ -27,7 +27,7 @@ function percentChange(current: number, previous: number): string {
 
 const INCOME_CATEGORY_IDS = new Set(["fees", "grants", "sales"]);
 
-export default function CategoriesReportPage() {
+function CategoriesReportPageContent() {
   const params = useSearchParams();
   const { files } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
@@ -121,5 +121,13 @@ export default function CategoriesReportPage() {
         </article>
       </section>
     </main>
+  );
+}
+
+export default function CategoriesReportPage() {
+  return (
+    <Suspense fallback={<main style={{ padding: 32 }}>Laddar rapport...</main>}>
+      <CategoriesReportPageContent />
+    </Suspense>
   );
 }

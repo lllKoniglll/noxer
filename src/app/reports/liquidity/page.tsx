@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { SortableTable } from "@/app/sortable-table";
@@ -16,7 +16,7 @@ import { useUploads } from "@/app/upload-context";
 import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
 
-export default function LiquidityReportPage() {
+function LiquidityReportPageContent() {
   const params = useSearchParams();
   const { files } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
@@ -145,5 +145,13 @@ export default function LiquidityReportPage() {
         </article>
       </section>
     </main>
+  );
+}
+
+export default function LiquidityReportPage() {
+  return (
+    <Suspense fallback={<main style={{ padding: 32 }}>Laddar rapport...</main>}>
+      <LiquidityReportPageContent />
+    </Suspense>
   );
 }

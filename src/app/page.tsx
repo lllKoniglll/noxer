@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
@@ -26,7 +26,7 @@ function percentChange(current: number, previous: number): string {
   return `${change >= 0 ? "+" : ""}${Math.round(change)}% mot föregående år`;
 }
 
-export default function MonthlyReportPage() {
+function MonthlyReportPageContent() {
   const params = useSearchParams();
   const { files } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
@@ -230,5 +230,13 @@ export default function MonthlyReportPage() {
         </article>
       </section>
     </main>
+  );
+}
+
+export default function MonthlyReportPage() {
+  return (
+    <Suspense fallback={<main style={{ padding: 32 }}>Laddar rapport...</main>}>
+      <MonthlyReportPageContent />
+    </Suspense>
   );
 }
