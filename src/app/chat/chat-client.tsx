@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Bot, Send, UserRound } from "lucide-react";
 import { SortableTable, type SortableTableColumn } from "@/app/sortable-table";
+import { useUploads } from "@/app/upload-context";
 import styles from "../page.module.css";
 
 type ChatMessage = {
@@ -47,7 +48,7 @@ declare global {
   }
 }
 
-const API_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://localhost:8001";
+const API_URL = "/api";
 
 function PlotlyChart({ chart }: { chart: ChartSpec }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -123,6 +124,7 @@ function ResultTable({ table }: { table: TableSpec }) {
 }
 
 export function ChatClient() {
+  const { files } = useUploads();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -135,6 +137,7 @@ export function ChatClient() {
   const [toolCalls, setToolCalls] = useState<ToolCall[]>([]);
   const [chart, setChart] = useState<ChartSpec | null>(null);
   const [table, setTable] = useState<TableSpec | null>(null);
+  const [source, setSource] = useState<ChatResponse["source"] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -149,10 +152,12 @@ export function ChatClient() {
     setError(null);
 
     try {
+      const formData = new FormData();
+      formData.append("payload", JSON.stringify({ message, history: messages }));
+      files.forEach((file) => formData.append("files", file, file.name));
       const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, history: messages })
+        body: formData
       });
 
       if (!response.ok) throw new Error(`Backend svarade ${response.status}`);
@@ -161,6 +166,7 @@ export function ChatClient() {
       setToolCalls(payload.tool_calls ?? []);
       setChart(payload.chart ?? null);
       setTable(payload.table ?? null);
+      setSource(payload.source ?? "deterministic");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Kunde inte kontakta agenten");
     } finally {
@@ -225,6 +231,9 @@ export function ChatClient() {
         <section>
           <h2>Agentverktyg</h2>
           <p>Agenten kan slå upp största intäkt/utgift, kategoriavvikelser, SQL-baserade tabeller och interaktiva Plotly-diagram.</p>
+          {source ? (
+            <p role="status">Senaste svarskälla: <strong>{source === "ollama" ? "Ollama" : "lokal fallback"}</strong></p>
+          ) : null}
         </section>
         {toolCalls.length ? (
           <section className={styles.toolCallList}>

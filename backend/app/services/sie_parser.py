@@ -51,7 +51,11 @@ def parse_amount(value: Optional[str]) -> float:
 
 
 def parse_sie_file(path: Path) -> AccountingDataset:
-    text = path.read_bytes().decode("cp437")
+    return parse_sie_bytes(path.read_bytes(), path.name)
+
+
+def parse_sie_bytes(content: bytes, file_name: str) -> AccountingDataset:
+    text = content.decode("cp437")
     accounts: Dict[str, Account] = {}
     vouchers: List[Voucher] = []
     organization_name = ""
@@ -83,7 +87,7 @@ def parse_sie_file(path: Path) -> AccountingDataset:
                 date=tokens[3],
                 text=tokens[4],
                 registration_date=tokens[5] if len(tokens) > 5 else None,
-                source_file=path.name,
+                source_file=file_name,
             )
             vouchers.append(current_voucher)
             continue
@@ -100,7 +104,7 @@ def parse_sie_file(path: Path) -> AccountingDataset:
     latest_voucher_date = max((voucher.date for voucher in vouchers), default=None)
     return AccountingDataset(
         organization_name=organization_name or "Kronängs IF",
-        files=[path.name],
+        files=[file_name],
         accounts=accounts,
         vouchers=vouchers,
         latest_voucher_date=latest_voucher_date,
@@ -136,4 +140,25 @@ def load_dataset(sie_dir: Path) -> AccountingDataset:
         accounts=accounts,
         vouchers=unique_vouchers,
         latest_voucher_date=latest_voucher_date,
+    )
+
+
+def load_dataset_from_bytes(files: List[tuple[str, bytes]]) -> AccountingDataset:
+    parsed = [parse_sie_bytes(content, file_name) for file_name, content in files]
+    accounts: Dict[str, Account] = {}
+    vouchers: List[Voucher] = []
+    file_names: List[str] = []
+    organization_name = ""
+    for dataset in parsed:
+        accounts.update(dataset.accounts)
+        vouchers.extend(dataset.vouchers)
+        file_names.extend(dataset.files)
+        organization_name = organization_name or dataset.organization_name
+    vouchers.sort(key=lambda voucher: voucher.date)
+    return AccountingDataset(
+        organization_name=organization_name or "Kronängs IF",
+        files=file_names,
+        accounts=accounts,
+        vouchers=vouchers,
+        latest_voucher_date=max((voucher.date for voucher in vouchers), default=None),
     )

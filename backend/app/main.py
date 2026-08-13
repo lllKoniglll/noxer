@@ -1,10 +1,13 @@
-from fastapi import FastAPI
+import json
+from typing import List
+
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.adk_adapter import adk_status
 from app.agent.ollama_client import status as ollama_status
 from app.agent.service import answer_chat
-from app.agent.tools import TOOL_DEFINITIONS, dataset
+from app.agent.tools import TOOL_DEFINITIONS, dataset, reset_request_dataset, set_request_dataset
 from app.schemas import ChatRequest, ChatResponse
 
 
@@ -34,5 +37,11 @@ def health():
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest):
-    return answer_chat(request.message, request.history)
+async def chat_endpoint(payload: str = Form(...), files: List[UploadFile] = File(default=[])):
+    request = ChatRequest.model_validate(json.loads(payload))
+    uploaded = [(file.filename or "upload.se", await file.read()) for file in files]
+    token = set_request_dataset(uploaded)
+    try:
+        return answer_chat(request.message, request.history)
+    finally:
+        reset_request_dataset(token)

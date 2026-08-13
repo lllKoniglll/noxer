@@ -38,7 +38,7 @@ function parseTransaction(tokens: string[]): Transaction | null {
   };
 }
 
-export function parseSieBuffer(buffer: Buffer, fileName: string): SieFile {
+export function parseSieBuffer(buffer: Uint8Array, fileName: string): SieFile {
   const text = decodePc8(buffer);
   const lines = text.split(/\r?\n/);
   const accounts = new Map();

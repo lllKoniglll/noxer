@@ -1,5 +1,3 @@
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
 import { parseSieBuffer } from "@/lib/sie/parser";
 import type {
   AccountingDataset,
@@ -12,7 +10,6 @@ import type {
 } from "@/lib/sie/types";
 import { ACCOUNT_CATEGORIES, getAccountCategory } from "./categories";
 
-const SIE_DIRECTORY = path.join(process.cwd(), "SIE4");
 const CASH_ACCOUNTS = new Set(["1910", "1920", "1930", "1939", "1940", "1950", "1960"]);
 const MONTH_LABELS = [
   "Jan",
@@ -109,16 +106,26 @@ function uniqueBalances(balances: Balance[]): Balance[] {
   return Array.from(byKey.values());
 }
 
-export async function loadAccountingDataset(): Promise<AccountingDataset> {
-  const fileNames = (await readdir(SIE_DIRECTORY)).filter((fileName) =>
-    fileName.toLowerCase().endsWith(".se")
+export function emptyAccountingDataset(): AccountingDataset {
+  return {
+    organizationName: "Noxer",
+    files: [],
+    accounts: new Map(),
+    fiscalYears: [],
+    vouchers: [],
+    openingBalances: [],
+    closingBalances: [],
+    resultBalances: []
+  };
+}
+
+export async function loadAccountingDataset(uploadedFiles: File[] = []): Promise<AccountingDataset> {
+  const files = await Promise.all(
+    uploadedFiles
+      .map(async (file) => parseSieBuffer(new Uint8Array(await file.arrayBuffer()), file.name))
   );
 
-  const files = await Promise.all(
-    fileNames.map(async (fileName) =>
-      parseSieBuffer(await readFile(path.join(SIE_DIRECTORY, fileName)), fileName)
-    )
-  );
+  if (!files.length) return emptyAccountingDataset();
 
   const accounts = new Map();
   for (const file of files) {
@@ -130,7 +137,7 @@ export async function loadAccountingDataset(): Promise<AccountingDataset> {
 
   return {
     organizationName: files.find((file) => file.companyName)?.companyName ?? "Kronängs IF",
-    files: fileNames,
+    files: files.map((file) => file.fileName),
     accounts,
     fiscalYears: files.flatMap((file) => file.fiscalYears),
     vouchers,

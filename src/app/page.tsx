@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
 import { SortableTable } from "@/app/sortable-table";
@@ -5,12 +9,15 @@ import {
   buildMonthlyReport,
   comparisonCutoffDate,
   comparisonModeLabel,
+  emptyAccountingDataset,
   formatSieDate,
   formatThousands,
   getAvailableYears,
   loadAccountingDataset,
   parseComparisonMode
 } from "@/lib/reports/accounting";
+import { useUploads } from "@/app/upload-context";
+import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "./page.module.css";
 
 function percentChange(current: number, previous: number): string {
@@ -19,15 +26,15 @@ function percentChange(current: number, previous: number): string {
   return `${change >= 0 ? "+" : ""}${Math.round(change)}% mot föregående år`;
 }
 
-type PageProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
-
-export default async function MonthlyReportPage({ searchParams }: PageProps) {
-  const params = await searchParams;
-  const comparisonMode = parseComparisonMode(params?.comparison);
+export default function MonthlyReportPage() {
+  const params = useSearchParams();
+  const { files } = useUploads();
+  const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
+  useEffect(() => {
+    loadAccountingDataset(files).then(setDataset);
+  }, [files]);
+  const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
-  const dataset = await loadAccountingDataset();
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
   const monthlyRows = buildMonthlyReport(dataset, selectedYear, comparisonMode);
@@ -49,6 +56,10 @@ export default async function MonthlyReportPage({ searchParams }: PageProps) {
     1
   );
   const actualMonths = monthlyRows.filter((row) => row.income !== 0 || row.costs !== 0).length;
+
+  if (!files.length) {
+    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
+  }
 
   return (
     <main className={styles.shell}>

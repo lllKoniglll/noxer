@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { UploadPanel, UploadProvider } from "./upload-context";
 
 export const metadata: Metadata = {
   title: "Noxer",
@@ -13,7 +14,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="sv">
-      <body>{children}</body>
+      <body>
+        <UploadProvider>
+          <UploadPanel />
+          {children}
+        </UploadProvider>
+      </body>
     </html>
   );
 }
