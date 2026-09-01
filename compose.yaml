@@ -24,6 +24,7 @@ services:
       - ai-network
 
   web:
+    container_name: noxer-web
     build:
       context: .
     env_file:
@@ -31,8 +32,6 @@ services:
         required: false
     environment:
       AGENT_API_URL: http://backend:8001
-    ports:
-      - "127.0.0.1:8081:3000"
     depends_on:
       backend:
         condition: service_healthy

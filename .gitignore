@@ -12,6 +12,7 @@ backend/.venv/
 .env
 .env.*
 !.env.example
+data/
 SIE4/
 *.xlsx
 *.xls
