@@ -29,7 +29,12 @@ async function loadServerFiles(): Promise<{ files: File[]; group: string }> {
 async function responseError(response: Response, fallback: string): Promise<Error> {
   try {
     const payload = (await response.json()) as { detail?: string };
-    return new Error(payload.detail ?? fallback);
+    const detail = typeof payload.detail === "string"
+      ? payload.detail
+      : payload.detail
+        ? JSON.stringify(payload.detail)
+        : fallback;
+    return new Error(detail);
   } catch {
     return new Error(fallback);
   }
