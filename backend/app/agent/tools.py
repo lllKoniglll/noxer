@@ -18,13 +18,15 @@ from app.services.sqlite_store import build_connection, latest_year, like_patter
 
 SIE_DIR = Path(os.getenv("NOXER_SIE_DIR", str(Path(__file__).resolve().parents[3] / "SIE4")))
 REQUEST_DATASET: ContextVar[Optional[AccountingDataset]] = ContextVar("request_dataset", default=None)
+REQUEST_SIE_DIR: ContextVar[Optional[Path]] = ContextVar("request_sie_dir", default=None)
 
 
 def dataset():
     uploaded = REQUEST_DATASET.get()
     if uploaded is not None:
         return uploaded
-    return load_dataset(SIE_DIR) if SIE_DIR.exists() else load_dataset_from_bytes([])
+    sie_dir = REQUEST_SIE_DIR.get() or SIE_DIR
+    return load_dataset(sie_dir) if sie_dir.exists() else load_dataset_from_bytes([])
 
 
 def set_request_dataset(files: List[tuple[str, bytes]]):
@@ -33,6 +35,14 @@ def set_request_dataset(files: List[tuple[str, bytes]]):
 
 def reset_request_dataset(token) -> None:
     REQUEST_DATASET.reset(token)
+
+
+def set_request_sie_dir(path: Path):
+    return REQUEST_SIE_DIR.set(path)
+
+
+def reset_request_sie_dir(token) -> None:
+    REQUEST_SIE_DIR.reset(token)
 
 
 def get_largest_income_or_expense(year: Optional[int], month: int, kind: str) -> Dict[str, Any]:

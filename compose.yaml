@@ -8,6 +8,11 @@ services:
     environment:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:120b-cloud}
+      NOXER_DATA_DIR: /data/noxer
+      NOXER_WORKSPACE_GROUP_PREFIX: ${NOXER_WORKSPACE_GROUP_PREFIX:-noxer-workspace-}
+      NOXER_MAX_FILE_BYTES: ${NOXER_MAX_FILE_BYTES:-26214400}
+    volumes:
+      - ${NOXER_DATA_PATH:-./data}:/data/noxer
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5)"]

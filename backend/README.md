@@ -20,8 +20,25 @@ Environment:
 - `OLLAMA_BASE_URL`: optional, defaults to `http://localhost:11434`.
 - `OLLAMA_MODEL`: optional, defaults to `llama3.1:8b`.
 
-The production API receives SIE4 files as multipart uploads on each chat
-request. Uploaded files are not written to disk. The local fallback directory
-`../SIE4` is only useful for development diagnostics.
+The production API receives SIE4 files through the authenticated web API. Files
+are stored in a per-workspace directory on the server and loaded for reports
+and chat. The local fallback directory `../SIE4` is only useful for development
+diagnostics.
+
+## Workspace groups
+
+Authentik must send exactly one group whose name starts with
+`noxer-workspace-`, for example `noxer-workspace-team-a`. All users in that
+group share the same SIE files. Users with no matching group, or with more
+than one matching workspace group, are denied. The backend never accepts a
+workspace path from the browser.
+
+The production bind mount must be writable by the backend container user
+(UID 10001), for example on the server:
+
+```sh
+mkdir -p /Users/server/server/stacks/noxer/data
+chown -R 10001:10001 /Users/server/server/stacks/noxer/data
+```
 
 Python 3.10+ is recommended for Google ADK. The local macOS Python 3.9 can run this prototype, but ADK emits compatibility warnings.

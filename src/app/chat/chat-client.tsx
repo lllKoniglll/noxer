@@ -3,7 +3,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Bot, Send, UserRound } from "lucide-react";
 import { SortableTable, type SortableTableColumn } from "@/app/sortable-table";
-import { useUploads } from "@/app/upload-context";
 import styles from "../page.module.css";
 
 type ChatMessage = {
@@ -124,7 +123,6 @@ function ResultTable({ table }: { table: TableSpec }) {
 }
 
 export function ChatClient() {
-  const { files } = useUploads();
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -154,7 +152,6 @@ export function ChatClient() {
     try {
       const formData = new FormData();
       formData.append("payload", JSON.stringify({ message, history: messages }));
-      files.forEach((file) => formData.append("files", file, file.name));
       const response = await fetch(`${API_URL}/chat`, {
         method: "POST",
         body: formData

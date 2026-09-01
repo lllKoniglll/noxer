@@ -1,78 +1,84 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  loadStoredSieUploads,
-  replaceStoredSieUploads
-} from "@/lib/storage/sie-upload-store";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
+type StoredFile = { name: string; size: number };
 type UploadContextValue = {
   files: File[];
   setFiles: (files: File[]) => void;
   clearFiles: () => void;
   isLoading: boolean;
   storageError: string | null;
+  group: string | null;
 };
 
 const UploadContext = createContext<UploadContextValue | null>(null);
 
+async function loadServerFiles(): Promise<{ files: File[]; group: string }> {
+  const response = await fetch("/api/files", { cache: "no-store" });
+  if (!response.ok) throw new Error("Kunde inte läsa gruppens filer");
+  const listing = (await response.json()) as { group: string; files: StoredFile[] };
+  const files = await Promise.all(listing.files.map(async (entry) => {
+    const fileResponse = await fetch(`/api/files/${encodeURIComponent(entry.name)}`, { cache: "no-store" });
+    if (!fileResponse.ok) throw new Error(`Kunde inte läsa ${entry.name}`);
+    return new File([await fileResponse.arrayBuffer()], entry.name, { type: "application/octet-stream" });
+  }));
+  return { files, group: listing.group };
+}
+
 export function UploadProvider({ children }: { children: ReactNode }) {
-  const [files, setFiles] = useState<File[]>([]);
-  // IndexedDB ska aldrig blockera själva filväljaren.
-  const [isLoading, setIsLoading] = useState(false);
+  const [files, setFilesState] = useState<File[]>([]);
+  const [group, setGroup] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const userChangedFiles = useRef(false);
 
-  useEffect(() => {
-    let active = true;
-    const fallback = window.setTimeout(() => {
-      if (active) {
-        setStorageError("Lokal lagring svarar inte. Du kan ändå ladda upp filer, men de sparas inte förrän lagringen fungerar igen.");
-        setIsLoading(false);
-      }
-    }, 2000);
+  const refresh = async () => {
+    setIsLoading(true);
+    try {
+      const result = await loadServerFiles();
+      setFilesState(result.files);
+      setGroup(result.group);
+      setStorageError(null);
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : "Gruppens filer kunde inte läsas");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    loadStoredSieUploads()
-      .then((storedFiles) => {
-        if (active && !userChangedFiles.current) setFiles(storedFiles);
-      })
-      .catch(() => {
-        if (active) setStorageError("Kunde inte läsa sparade SIE4-filer från webbläsaren.");
-      })
-      .finally(() => {
-        if (active) {
-          window.clearTimeout(fallback);
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-      window.clearTimeout(fallback);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!userChangedFiles.current) return;
-
-    void replaceStoredSieUploads(files)
-      .then(() => setStorageError(null))
-      .catch(() => setStorageError("Filerna kunde inte sparas lokalt i webbläsaren."));
-  }, [files]);
+  useEffect(() => { void refresh(); }, []);
 
   const replaceFiles = (nextFiles: File[]) => {
-    userChangedFiles.current = true;
-    // Filändelsen varierar mellan SIE-exporter (.se, .sie, .se4 eller ingen ändelse).
-    // Acceptera därför alla filer som användaren uttryckligen valt i filväljaren.
-    setFiles(nextFiles);
+    void (async () => {
+      try {
+        for (const file of nextFiles) {
+          const body = new FormData();
+          body.append("file", file, file.name);
+          const response = await fetch("/api/files", { method: "POST", body });
+          if (!response.ok) throw new Error(`Kunde inte spara ${file.name}`);
+        }
+        await refresh();
+      } catch (error) {
+        setStorageError(error instanceof Error ? error.message : "Filerna kunde inte sparas på servern");
+      }
+    })();
   };
 
   const removeFiles = () => {
-    userChangedFiles.current = true;
-    setFiles([]);
+    void (async () => {
+      try {
+        for (const file of files) {
+          const response = await fetch(`/api/files/${encodeURIComponent(file.name)}`, { method: "DELETE" });
+          if (!response.ok) throw new Error(`Kunde inte radera ${file.name}`);
+        }
+        await refresh();
+      } catch (error) {
+        setStorageError(error instanceof Error ? error.message : "Filerna kunde inte raderas");
+      }
+    })();
   };
 
-  const value = { files, setFiles: replaceFiles, clearFiles: removeFiles, isLoading, storageError };
+  const value = { files, setFiles: replaceFiles, clearFiles: removeFiles, isLoading, storageError, group };
   return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;
 }
 
@@ -83,29 +89,12 @@ export function useUploads() {
 }
 
 export function UploadPanel() {
-  const { files, setFiles, clearFiles, isLoading, storageError } = useUploads();
+  const { files, setFiles, clearFiles, isLoading, storageError, group } = useUploads();
   return (
     <div style={{ padding: "12px 24px", borderBottom: "1px solid #d5e3db", background: "#f7fbf8" }}>
       <label htmlFor="sie-upload"><strong>Ladda upp SIE4-filer</strong></label>
-      <input
-        id="sie-upload"
-        type="file"
-        accept=".se,.sie,.se4,text/plain,application/octet-stream"
-        multiple
-        onChange={(event) => {
-          const selectedFiles = Array.from(event.currentTarget.files ?? []);
-          setFiles(selectedFiles);
-        }}
-        style={{ marginLeft: 12 }}
-      />
-      {files.length ? (
-        <span style={{ marginLeft: 12 }}>
-          {files.length} fil{files.length === 1 ? "" : "er"} sparad{files.length === 1 ? "" : "e"} lokalt
-          <button type="button" onClick={clearFiles} style={{ marginLeft: 8 }}>Rensa</button>
-        </span>
-      ) : (
-        <span style={{ marginLeft: 12 }}>{isLoading ? "Läser sparade filer i bakgrunden..." : "Inga SIE4-filer uppladdade."}</span>
-      )}
+      <input id="sie-upload" type="file" accept=".se,.sie,.se4,text/plain,application/octet-stream" multiple onChange={(event) => setFiles(Array.from(event.currentTarget.files ?? []))} style={{ marginLeft: 12 }} />
+      {files.length ? <span style={{ marginLeft: 12 }}>{files.length} fil{files.length === 1 ? "" : "er"} i {group ?? "gruppen"}<button type="button" onClick={clearFiles} style={{ marginLeft: 8 }}>Rensa</button></span> : <span style={{ marginLeft: 12 }}>{isLoading ? "Läser gruppens filer..." : "Inga SIE4-filer uppladdade."}</span>}
       {storageError ? <small role="alert" style={{ marginLeft: 12, color: "#a33" }}>{storageError}</small> : null}
     </div>
   );
