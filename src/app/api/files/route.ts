@@ -23,9 +23,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const headers = forwardHeaders(request);
+  const contentType = request.headers.get("content-type");
+  if (contentType) headers.set("content-type", contentType);
   const response = await fetch(`${BACKEND}/files`, {
     method: "POST",
-    headers: forwardHeaders(request),
+    headers,
     body: await request.arrayBuffer(),
     cache: "no-store"
   });
