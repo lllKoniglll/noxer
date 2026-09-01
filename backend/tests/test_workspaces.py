@@ -25,6 +25,10 @@ def test_filename_rejects_path_traversal():
         safe_filename("report.csv")
 
 
+def test_filename_accepts_swedish_characters():
+    assert safe_filename("KronängsIdrottsförening20260618_113338.se") == "KronängsIdrottsförening20260618_113338.se"
+
+
 def test_group_isolation(tmp_path, monkeypatch):
     monkeypatch.setattr("app.workspaces.DATA_ROOT", tmp_path)
     first = client.post("/files", headers=auth_headers("noxer-workspace-a"), files={"file": ("shared.se", b"#FLAGGA 0")})

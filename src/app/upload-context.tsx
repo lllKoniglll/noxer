@@ -26,6 +26,15 @@ async function loadServerFiles(): Promise<{ files: File[]; group: string }> {
   return { files, group: listing.group };
 }
 
+async function responseError(response: Response, fallback: string): Promise<Error> {
+  try {
+    const payload = (await response.json()) as { detail?: string };
+    return new Error(payload.detail ?? fallback);
+  } catch {
+    return new Error(fallback);
+  }
+}
+
 export function UploadProvider({ children }: { children: ReactNode }) {
   const [files, setFilesState] = useState<File[]>([]);
   const [group, setGroup] = useState<string | null>(null);
@@ -55,7 +64,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
           const body = new FormData();
           body.append("file", file, file.name);
           const response = await fetch("/api/files", { method: "POST", body });
-          if (!response.ok) throw new Error(`Kunde inte spara ${file.name}`);
+          if (!response.ok) throw await responseError(response, `Kunde inte spara ${file.name}`);
         }
         await refresh();
       } catch (error) {

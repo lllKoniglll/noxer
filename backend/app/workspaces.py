@@ -11,7 +11,6 @@ GROUP_PREFIX = os.getenv("NOXER_WORKSPACE_GROUP_PREFIX", "noxer-workspace-")
 DATA_ROOT = Path(os.getenv("NOXER_DATA_DIR", "/data/noxer")).resolve()
 MAX_FILE_BYTES = int(os.getenv("NOXER_MAX_FILE_BYTES", str(25 * 1024 * 1024)))
 ALLOWED_SUFFIXES = {".se", ".sie", ".se4"}
-_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,180}$")
 
 
 @dataclass(frozen=True)
@@ -51,7 +50,13 @@ def identity_from_request(request: Request) -> WorkspaceIdentity:
 
 def safe_filename(filename: str) -> str:
     name = Path(filename).name
-    if name != filename or not _SAFE_NAME.fullmatch(name) or Path(name).suffix.lower() not in ALLOWED_SUFFIXES:
+    if (
+        not name
+        or name != filename
+        or len(name) > 181
+        or any(ord(character) < 32 for character in name)
+        or Path(name).suffix.lower() not in ALLOWED_SUFFIXES
+    ):
         raise HTTPException(status_code=400, detail="Ogiltigt SIE-filnamn")
     return name
 
