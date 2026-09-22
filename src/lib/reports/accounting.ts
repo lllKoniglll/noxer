@@ -61,6 +61,7 @@ export type AccountActivity = {
 };
 
 export type ComparisonMode = "fullYear" | "samePeriod";
+export type CashForecastMode = "latestDate" | "fullMonth";
 
 export function parseComparisonMode(value: string | string[] | undefined): ComparisonMode {
   return value === "fullYear" ? "fullYear" : "samePeriod";
@@ -466,11 +467,34 @@ function cashOpeningBalance(dataset: AccountingDataset): number {
     .reduce((sum, balance) => sum + balance.amount, 0);
 }
 
-export function buildCashForecast(dataset: AccountingDataset, selectedYear: number): CashPoint[] {
+function isEndOfMonth(date: string): boolean {
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(4, 6));
+  const day = Number(date.slice(6, 8));
+  return day === new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function monthFractionForDate(date: string): number {
+  const year = Number(date.slice(0, 4));
+  const month = Number(date.slice(4, 6));
+  const day = Number(date.slice(6, 8));
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return day / daysInMonth;
+}
+
+export function buildCashForecast(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  forecastMode: CashForecastMode = "latestDate"
+): CashPoint[] {
   const opening = cashOpeningBalance(dataset);
   const monthlyActualFlow = new Map<string, number>();
+  const actualFlowThroughLatestDate = new Map<string, number>();
   const previousYearFlow = new Map<number, number>();
-  const latestMonth = dataset.latestVoucherDate ? monthFromDate(dataset.latestVoucherDate) : 0;
+  const latestDate = latestVoucherDateForYear(dataset, selectedYear);
+  const latestMonth = latestDate ? monthFromDate(latestDate) : 0;
+  const previousCutoff = latestDate ? `${selectedYear - 1}${latestDate.slice(4)}` : undefined;
+  const previousYearFlowThroughCutoff = new Map<number, number>();
 
   for (const voucher of dataset.vouchers) {
     const year = yearFromDate(voucher.date);
@@ -481,10 +505,16 @@ export function buildCashForecast(dataset: AccountingDataset, selectedYear: numb
 
     if (year === selectedYear) {
       monthlyActualFlow.set(monthKey(year, month), (monthlyActualFlow.get(monthKey(year, month)) ?? 0) + cashFlow);
+      if (latestDate && voucher.date <= latestDate) {
+        actualFlowThroughLatestDate.set(monthKey(year, month), (actualFlowThroughLatestDate.get(monthKey(year, month)) ?? 0) + cashFlow);
+      }
     }
 
     if (year === selectedYear - 1) {
       previousYearFlow.set(month, (previousYearFlow.get(month) ?? 0) + cashFlow);
+      if (previousCutoff && voucher.date <= previousCutoff) {
+        previousYearFlowThroughCutoff.set(month, (previousYearFlowThroughCutoff.get(month) ?? 0) + cashFlow);
+      }
     }
   }
 
@@ -494,15 +524,32 @@ export function buildCashForecast(dataset: AccountingDataset, selectedYear: numb
   return MONTH_LABELS.map((label, index) => {
     const month = index + 1;
     const actualFlow = monthlyActualFlow.get(monthKey(selectedYear, month)) ?? 0;
+    const actualFlowToDate = actualFlowThroughLatestDate.get(monthKey(selectedYear, month)) ?? 0;
+    const isPartialLatestMonth = Boolean(latestDate && month === latestMonth && !isEndOfMonth(latestDate));
 
-    if (month <= latestMonth) {
+    if (month < latestMonth || (month === latestMonth && forecastMode === "latestDate" && !isPartialLatestMonth)) {
       actualBalance += actualFlow;
       forecastBalance = actualBalance;
       return {
         month: String(month).padStart(2, "0"),
         label,
         actual: roundSek(actualBalance),
-        forecast: null
+        forecast: null,
+        actualFraction: 1
+      };
+    }
+
+    if (month === latestMonth && forecastMode === "latestDate" && isPartialLatestMonth) {
+      actualBalance += actualFlowToDate;
+      const previousMonthFlow = previousYearFlow.get(month) ?? 0;
+      const previousFlowToCutoff = previousYearFlowThroughCutoff.get(month) ?? 0;
+      forecastBalance = actualBalance + (previousMonthFlow - previousFlowToCutoff);
+      return {
+        month: String(month).padStart(2, "0"),
+        label,
+        actual: roundSek(actualBalance),
+        forecast: roundSek(forecastBalance),
+        actualFraction: monthFractionForDate(latestDate!)
       };
     }
 
@@ -511,9 +558,23 @@ export function buildCashForecast(dataset: AccountingDataset, selectedYear: numb
       month: String(month).padStart(2, "0"),
       label,
       actual: null,
-      forecast: roundSek(forecastBalance)
+      forecast: roundSek(forecastBalance),
+      actualFraction: 0
     };
   });
+}
+
+export function buildProjectedResult(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  forecastMode: CashForecastMode = "latestDate"
+): number {
+  const openingBalance = cashOpeningBalance(dataset);
+  const forecast = buildCashForecast(dataset, selectedYear, forecastMode);
+  const projectedClosingBalance = [...forecast].reverse().find((point) => point.forecast !== null)?.forecast
+    ?? [...forecast].reverse().find((point) => point.actual !== null)?.actual
+    ?? openingBalance;
+  return roundSek(projectedClosingBalance - openingBalance);
 }
 
 export function formatSek(value: number): string {

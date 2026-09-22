@@ -180,21 +180,25 @@ function MonthlyReportPageContent() {
               <div className={styles.month} key={row.month}>
                 <div className={styles.comparisonBars}>
                   <span
+                    data-tooltip={`Intäkter ${selectedYear - 1}: ${formatThousands(row.previousYearIncome)}`}
                     title={`Intäkter ${selectedYear - 1}: ${formatThousands(row.previousYearIncome)}`}
                     style={{ height: `${Math.max((row.previousYearIncome / maxBar) * 100, row.previousYearIncome ? 2 : 0)}%` }}
                     className={styles.incomePrevious}
                   />
                   <span
+                    data-tooltip={`Kostnader ${selectedYear - 1}: ${formatThousands(row.previousYearCosts)}`}
                     title={`Kostnader ${selectedYear - 1}: ${formatThousands(row.previousYearCosts)}`}
                     style={{ height: `${Math.max((row.previousYearCosts / maxBar) * 100, row.previousYearCosts ? 2 : 0)}%` }}
                     className={styles.costPrevious}
                   />
                   <span
+                    data-tooltip={`Intäkter ${selectedYear}: ${formatThousands(row.income)}`}
                     title={`Intäkter ${selectedYear}: ${formatThousands(row.income)}`}
                     style={{ height: `${Math.max((row.income / maxBar) * 100, row.income ? 2 : 0)}%` }}
                     className={styles.income}
                   />
                   <span
+                    data-tooltip={`Kostnader ${selectedYear}: ${formatThousands(row.costs)}`}
                     title={`Kostnader ${selectedYear}: ${formatThousands(row.costs)}`}
                     style={{ height: `${Math.max((row.costs / maxBar) * 100, row.costs ? 2 : 0)}%` }}
                     className={styles.cost}

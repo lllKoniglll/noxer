@@ -150,6 +150,25 @@
   color: #ffffff;
 }
 
+.forecastControl {
+  display: grid;
+  gap: 5px;
+}
+
+.forecastControl span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.forecastControl select {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 0 10px;
+}
+
 .kpis {
   display: grid;
   gap: 14px;
@@ -325,8 +344,85 @@
   height: 250px;
 }
 
-.comparisonBars span,
-.cashBars span {
+.cashBarWrap {
+  display: block;
+  height: 100%;
+  position: relative;
+  width: 28px;
+}
+
+.cashBar {
+  border-radius: 6px 6px 0 0;
+  bottom: 0;
+  display: block;
+  position: absolute;
+  width: 28px;
+}
+
+.cashTooltip {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  bottom: calc(100% + 8px);
+  box-shadow: 0 4px 12px rgb(23 33 27 / 18%);
+  color: var(--ink);
+  font-size: 0.76rem;
+  left: 50%;
+  opacity: 0;
+  padding: 7px 9px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  width: max-content;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.comparisonBars > [data-tooltip],
+.accountBars > [data-tooltip],
+.categoryChangeRow[data-tooltip] {
+  position: relative;
+}
+
+.comparisonBars > [data-tooltip]::after,
+.accountBars > [data-tooltip]::after,
+.categoryChangeRow[data-tooltip]::after {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  bottom: calc(100% + 8px);
+  box-shadow: 0 4px 12px rgb(23 33 27 / 18%);
+  color: var(--ink);
+  content: attr(data-tooltip);
+  font-size: 0.76rem;
+  left: 50%;
+  opacity: 0;
+  padding: 7px 9px;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  white-space: nowrap;
+  width: max-content;
+  z-index: 10;
+}
+
+.comparisonBars > [data-tooltip]:hover::after,
+.accountBars > [data-tooltip]:hover::after,
+.categoryChangeRow[data-tooltip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.cashBarWrap:hover .cashTooltip,
+.cashBarWrap:focus-within .cashTooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.comparisonBars > span,
+.cashBars > .cashBarWrap {
   border-radius: 6px 6px 0 0;
   display: block;
 }
@@ -335,7 +431,7 @@
   width: 7px;
 }
 
-.cashBars span {
+.cashBars > .cashBarWrap {
   width: 28px;
 }
 
@@ -360,6 +456,22 @@
 }
 
 .forecastBar {
+  background: var(--forecast);
+}
+
+.actualDot,
+.forecastDot {
+  border-radius: 999px;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.actualDot {
+  background: var(--cash);
+}
+
+.forecastDot {
   background: var(--forecast);
 }
 
@@ -1099,6 +1211,77 @@
 .neutralText {
   color: var(--muted);
   font-weight: 700;
+}
+
+.categoryChangeChart {
+  display: grid;
+  gap: 11px;
+  margin: 20px 0 24px;
+}
+
+.categoryChangeRow {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(170px, 0.45fr) minmax(180px, 1fr) 80px;
+}
+
+.categoryChangeRow > strong {
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.categoryChangeTotalRow {
+  border-top: 2px solid var(--line);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+.categoryChangeTrack {
+  background: #f0f3f0;
+  border-radius: 5px;
+  height: 22px;
+  overflow: hidden;
+  position: relative;
+}
+
+.categoryChangeBaseline {
+  background: var(--muted);
+  bottom: 0;
+  left: 50%;
+  position: absolute;
+  top: 0;
+  width: 1px;
+  z-index: 1;
+}
+
+.categoryChangePositive,
+.categoryChangeNegative {
+  border-radius: 4px;
+  height: 14px;
+  position: absolute;
+  top: 4px;
+}
+
+.categoryChangePositive {
+  background: var(--income);
+  left: 50%;
+}
+
+.categoryChangeNegative {
+  background: var(--cost);
+  right: 50%;
+}
+
+@media (max-width: 760px) {
+  .categoryChangeRow {
+    gap: 7px;
+    grid-template-columns: minmax(110px, 0.7fr) minmax(100px, 1fr) 64px;
+  }
+
+  .categoryChangeRow > strong {
+    font-size: 0.74rem;
+  }
 }
 
 @keyframes spin {

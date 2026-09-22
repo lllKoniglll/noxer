@@ -151,7 +151,7 @@ function AccountComparisonPageContent() {
                     <div className={styles.accountBars}>
                       {years.map((year, index) => {
                         const value = row.years[String(year)] ?? 0;
-                        return <span key={year} title={`${year}: ${value.toLocaleString("sv-SE")} kr`} style={{ background: `hsl(${156 + index * 42} 48% 42%)`, height: `${value ? Math.max((Math.abs(value) / maxBar) * 100, 2) : 0}%` }} />;
+                        return <span data-tooltip={`${year}: ${value.toLocaleString("sv-SE")} kr`} key={year} title={`${year}: ${value.toLocaleString("sv-SE")} kr`} style={{ background: `hsl(${156 + index * 42} 48% 42%)`, height: `${value ? Math.max((Math.abs(value) / maxBar) * 100, 2) : 0}%` }} />;
                       })}
                     </div>
                     <strong>{row.label}</strong>

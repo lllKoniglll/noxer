@@ -67,6 +67,7 @@ export type CashPoint = {
   label: string;
   actual: number | null;
   forecast: number | null;
+  actualFraction?: number;
 };
 
 export type AccountingDataset = {

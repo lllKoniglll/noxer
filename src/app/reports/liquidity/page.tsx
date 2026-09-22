@@ -6,10 +6,13 @@ import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lu
 import { SortableTable } from "@/app/sortable-table";
 import {
   buildCashForecast,
+  buildProjectedResult,
   formatThousands,
   getAvailableYears,
   loadAccountingDataset,
   emptyAccountingDataset,
+  type CashForecastMode,
+  formatMonth,
   parseComparisonMode
 } from "@/lib/reports/accounting";
 import { useUploads } from "@/app/upload-context";
@@ -20,15 +23,19 @@ function LiquidityReportPageContent() {
   const params = useSearchParams();
   const { files } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
+  const [forecastMode, setForecastMode] = useState<CashForecastMode>("latestDate");
   useEffect(() => { loadAccountingDataset(files).then(setDataset); }, [files]);
   const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
-  const cashForecast = buildCashForecast(dataset, selectedYear);
+  const cashForecast = buildCashForecast(dataset, selectedYear, forecastMode);
   const latestActualCash = [...cashForecast].reverse().find((point) => point.actual !== null)?.actual ?? 0;
   const forecastEnd = [...cashForecast].reverse().find((point) => point.forecast !== null)?.forecast;
-  const maxCash = Math.max(...cashForecast.map((point) => point.actual ?? point.forecast ?? 0), 1);
+  const maxCash = Math.max(...cashForecast.flatMap((point) => [point.actual ?? 0, point.forecast ?? 0]), 1);
+  const actualMonths = cashForecast.filter((point) => point.actual !== null).length;
+  const latestActualMonth = [...cashForecast].reverse().find((point) => point.actual !== null)?.label;
+  const projectedResult = buildProjectedResult(dataset, selectedYear, forecastMode);
 
   if (!files.length) {
     return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
@@ -73,9 +80,18 @@ function LiquidityReportPageContent() {
           <div>
             <p>{dataset.organizationName}</p>
             <h1>Likviditet {selectedYear}</h1>
-            <span className={styles.fileStatus}>Faktiskt till {dataset.latestVoucherDate}, därefter prognos</span>
+            <span className={styles.fileStatus}>
+              Faktiskt till {dataset.latestVoucherDate ?? "saknas"}, {forecastMode === "latestDate" ? "prognos från nästa dag" : "prognos från föregående hela månad"}
+            </span>
           </div>
           <div className={styles.actions}>
+            <label className={styles.forecastControl}>
+              <span>Prognos från</span>
+              <select aria-label="Välj när prognosen ska börja" onChange={(event) => setForecastMode(event.target.value as CashForecastMode)} value={forecastMode}>
+                <option value="latestDate">Senaste datum ({dataset.latestVoucherDate ? `${formatMonth(Number(dataset.latestVoucherDate.slice(4, 6)))} ${dataset.latestVoucherDate.slice(6, 8)}` : "saknas"})</option>
+                <option value="fullMonth">Föregående hela månad</option>
+              </select>
+            </label>
             <button type="button" title="Exportera likviditetsrapport">
               <Download size={18} aria-hidden="true" />
               Excel
@@ -95,14 +111,14 @@ function LiquidityReportPageContent() {
             <small>Baserad på föregående år</small>
           </article>
           <article>
-            <span>Modell</span>
-            <strong>Justerbar</strong>
-            <small>Scenariojustering byggs nästa steg</small>
+            <span>Faktisk period</span>
+            <strong>{actualMonths}/12 mån</strong>
+            <small>Utfall t.o.m. {latestActualMonth ?? "saknas"}</small>
           </article>
           <article>
-            <span>Konton</span>
-            <strong>7 st</strong>
-            <small>1910-1960 enligt plan</small>
+            <span>Prognostiserat resultat</span>
+            <strong>{formatThousands(projectedResult)}</strong>
+            <small>Prognos saldo 31 dec − saldo 1 jan</small>
           </article>
         </section>
 
@@ -113,19 +129,34 @@ function LiquidityReportPageContent() {
               <h2>Faktiskt plus prognos för hela året</h2>
             </div>
           </div>
+          <div className={styles.legend} aria-label="Diagramförklaring">
+            <span><i className={styles.actualDot} /> Faktiskt saldo</span>
+            <span><i className={styles.forecastDot} /> Prognos</span>
+          </div>
           <div
             className={styles.cashChart}
             style={{ gridTemplateColumns: `repeat(${cashForecast.length}, minmax(64px, 1fr))` }}
           >
             {cashForecast.map((point) => {
-              const value = point.actual ?? point.forecast ?? 0;
+              const value = point.forecast ?? point.actual ?? 0;
+              const actualFraction = point.actualFraction ?? (point.actual !== null ? 1 : 0);
+              const barBackground = actualFraction >= 1
+                ? "var(--cash)"
+                : actualFraction <= 0
+                  ? "var(--forecast)"
+                  : `linear-gradient(to top, var(--cash) 0%, var(--cash) ${actualFraction * 100}%, var(--forecast) ${actualFraction * 100}%, var(--forecast) 100%)`;
+              const tooltip = point.actual !== null && point.forecast !== null
+                ? `${point.label}: Faktiskt ${formatThousands(point.actual)} · Prognos ${formatThousands(point.forecast)}`
+                : point.actual !== null
+                  ? `${point.label}: Faktiskt ${formatThousands(point.actual)}`
+                  : `${point.label}: Prognos ${formatThousands(point.forecast ?? 0)}`;
               return (
                 <div className={styles.month} key={point.month}>
                   <div className={styles.cashBars}>
-                    <span
-                      className={point.actual === null ? styles.forecastBar : styles.actualBar}
-                      style={{ height: `${Math.max((value / maxCash) * 100, 2)}%` }}
-                    />
+                    <span className={styles.cashBarWrap} style={{ height: `${Math.max((value / maxCash) * 100, 2)}%` }}>
+                      <span aria-label={tooltip} className={styles.cashBar} style={{ background: barBackground, height: "100%" }} />
+                      <span className={styles.cashTooltip} role="tooltip">{tooltip}</span>
+                    </span>
                   </div>
                   <strong>{point.label}</strong>
                 </div>

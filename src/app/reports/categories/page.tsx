@@ -23,14 +23,18 @@ import styles from "../../page.module.css";
 const INCOME_CATEGORY_IDS = new Set(["fees", "grants", "sales"]);
 
 function comparisonResult(current: number, previous: number) {
-  if (!previous) return { label: "Nytt jämförelsetal", className: styles.neutralText };
-  if (current === previous) return { label: "Oförändrat", className: styles.neutralText };
-  const change = ((current - previous) / Math.abs(previous)) * 100;
-  const improved = current > previous;
+  const change = current - previous;
+  if (change === 0) return { label: formatThousands(0), className: styles.neutralText };
   return {
-    label: `${change >= 0 ? "+" : ""}${Math.round(change)}% · ${improved ? "Bättre" : "Sämre"}`,
-    className: improved ? styles.betterText : styles.worseText
+    label: formatThousands(change),
+    className: change > 0 ? styles.betterText : styles.worseText
   };
+}
+
+function amountClass(value: number): string | undefined {
+  if (value > 0) return styles.incomeText;
+  if (value < 0) return styles.costText;
+  return undefined;
 }
 
 function CategoriesReportPageContent() {
@@ -46,6 +50,14 @@ function CategoriesReportPageContent() {
   const categories = buildCategorySummary(dataset, selectedYear, comparisonMode);
   const cutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
   const comparisonLabel = comparisonModeLabel(comparisonMode);
+  const totalCurrent = categories.reduce((sum, category) => sum + category.amount, 0);
+  const totalPrevious = categories.reduce((sum, category) => sum + category.previousAmount, 0);
+  const maxCategoryChange = Math.max(
+    ...categories.map((category) => Math.abs(category.amount - category.previousAmount)),
+    Math.abs(totalCurrent - totalPrevious),
+    1
+  );
+  const totalComparison = comparisonResult(totalCurrent, totalPrevious);
 
   if (!files.length) {
     return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
@@ -112,6 +124,29 @@ function CategoriesReportPageContent() {
               <h2>Nettoresultat jämfört med {comparisonLabel.toLowerCase()}</h2>
             </div>
           </div>
+          <div className={styles.categoryChangeChart} aria-label="Horisontellt stapeldiagram över förändring per kategori">
+            {categories.map((category) => {
+              const change = category.amount - category.previousAmount;
+              return (
+                <div className={styles.categoryChangeRow} data-tooltip={`${category.label}: ${formatThousands(change)}`} key={category.id} title={`${category.label}: ${formatThousands(change)}`}>
+                  <strong>{category.label}</strong>
+                  <div className={styles.categoryChangeTrack}>
+                    <span className={styles.categoryChangeBaseline} />
+                    {change !== 0 ? <span className={change > 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max((Math.abs(change) / maxCategoryChange) * 50, 1)}%` }} /> : null}
+                  </div>
+                  <span className={change > 0 ? styles.betterText : change < 0 ? styles.worseText : styles.neutralText}>{formatThousands(change)}</span>
+                </div>
+              );
+            })}
+            <div className={`${styles.categoryChangeRow} ${styles.categoryChangeTotalRow}`} data-tooltip={`Resultat: ${formatThousands(totalCurrent - totalPrevious)}`} title={`Resultat: ${formatThousands(totalCurrent - totalPrevious)}`}>
+              <strong>Resultat</strong>
+              <div className={styles.categoryChangeTrack}>
+                <span className={styles.categoryChangeBaseline} />
+                {totalCurrent !== totalPrevious ? <span className={totalCurrent > totalPrevious ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max((Math.abs(totalCurrent - totalPrevious) / maxCategoryChange) * 50, 1)}%` }} /> : null}
+              </div>
+              <span className={totalComparison.className}>{formatThousands(totalCurrent - totalPrevious)}</span>
+            </div>
+          </div>
           <div className={`${styles.chatTable} ${styles.wideTable}`}>
             <div className={styles.tableHeader}>
               <h3>Kategoridata</h3>
@@ -142,8 +177,8 @@ function CategoriesReportPageContent() {
                               <span><strong>{category.label}</strong><small>{isIncome ? "Intäkt" : "Kostnad"}</small></span>
                             </button>
                           </td>
-                          <td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(category.previousAmount)}</td>
-                          <td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(category.amount)}</td>
+                          <td className={amountClass(category.previousAmount)}>{formatThousands(category.previousAmount)}</td>
+                          <td className={amountClass(category.amount)}>{formatThousands(category.amount)}</td>
                           <td className={result.className}>{result.label}</td>
                         </tr>
                         {isExpanded ? (
@@ -153,7 +188,7 @@ function CategoriesReportPageContent() {
                                 <strong>Konton i {category.label}</strong>
                                 <table className={styles.categoryDetailsTable}>
                                   <thead><tr><th>Konto</th><th>{selectedYear - 1}</th><th>{selectedYear}</th></tr></thead>
-                                  <tbody>{accounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(account.previousAmount)}</td><td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(account.amount)}</td></tr>)}</tbody>
+                                  <tbody>{accounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.previousAmount)}>{formatThousands(account.previousAmount)}</td><td className={amountClass(account.amount)}>{formatThousands(account.amount)}</td></tr>)}</tbody>
                                 </table>
                               </div>
                             </td>
@@ -163,7 +198,7 @@ function CategoriesReportPageContent() {
                     );
                   })}
                 </tbody>
-                <tfoot><tr><td>Summa</td><td>{formatThousands(categories.reduce((sum, category) => sum + category.previousAmount, 0))}</td><td>{formatThousands(categories.reduce((sum, category) => sum + category.amount, 0))}</td><td /></tr></tfoot>
+                <tfoot><tr><td>Resultat</td><td>{formatThousands(totalPrevious)}</td><td>{formatThousands(totalCurrent)}</td><td className={totalComparison.className}>{totalComparison.label}</td></tr></tfoot>
               </table>
             </div>
           </div>

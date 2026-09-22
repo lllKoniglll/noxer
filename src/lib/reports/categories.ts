@@ -6,6 +6,18 @@ export type AccountCategory = {
 
 export const ACCOUNT_CATEGORIES: AccountCategory[] = [
   {
+    id: "mens-representation",
+    label: "Herrrepresentation (A-lag och U-lag)",
+    // 7114 is youth coaching and 7118 is goalkeeper coaching for the
+    // representative teams in the current chart of accounts.
+    accounts: ["4061", "7110", "7111", "7114", "7118"]
+  },
+  {
+    id: "womens-representation",
+    label: "Damrepresentation",
+    accounts: ["4062", "7113", "4611"]
+  },
+  {
     id: "fees",
     label: "Medlems- och träningsavgifter",
     accounts: ["301", "305", "361"]
