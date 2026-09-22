@@ -26,6 +26,33 @@ const MONTH_LABELS = [
   "Dec"
 ];
 
+export type AccountComparisonMonth = {
+  month: string;
+  label: string;
+  years: Record<string, number>;
+};
+
+export type AccountComparisonCategory = {
+  id: string;
+  label: string;
+  years: Record<string, number>;
+};
+
+export type AccountComparisonTransaction = {
+  account: string;
+  accountName: string;
+  date: string;
+  voucher: string;
+  text: string;
+  years: Record<string, number>;
+};
+
+export type AccountActivity = {
+  account: string;
+  name: string;
+  latestResult: number;
+};
+
 export type ComparisonMode = "fullYear" | "samePeriod";
 
 export function parseComparisonMode(value: string | string[] | undefined): ComparisonMode {
@@ -46,6 +73,14 @@ function monthKey(year: number, month: number): string {
 
 function roundSek(value: number): number {
   return Math.round(value);
+}
+
+function comparisonAmount(transaction: Transaction): number {
+  // Result accounts use the report convention: income positive, expenses
+  // negative. In SIE, both are normally the opposite sign in the ledger.
+  const accountClass = transaction.account[0];
+  if (accountClass && "345678".includes(accountClass)) return -transaction.amount;
+  return transaction.amount;
 }
 
 function latestVoucherDateForYear(dataset: AccountingDataset, selectedYear: number): string | undefined {
@@ -149,7 +184,133 @@ export async function loadAccountingDataset(uploadedFiles: File[] = []): Promise
 }
 
 export function getAvailableYears(dataset: AccountingDataset): number[] {
-  return Array.from(new Set(dataset.vouchers.map((voucher) => yearFromDate(voucher.date)))).sort();
+  return Array.from(new Set(dataset.vouchers.map((voucher) => yearFromDate(voucher.date)))).sort((a, b) => a - b);
+}
+
+export function getAvailableAccounts(dataset: AccountingDataset): string[] {
+  return getAccountActivity(dataset).map((item) => item.account);
+}
+
+export function getAccountActivity(dataset: AccountingDataset): AccountActivity[] {
+  const latestYear = getAvailableYears(dataset).at(-1);
+  const result = new Map<string, number>();
+  for (const voucher of dataset.vouchers) {
+    const voucherYear = yearFromDate(voucher.date);
+    for (const transaction of voucher.transactions) {
+      if (!result.has(transaction.account)) result.set(transaction.account, 0);
+      if (voucherYear === latestYear) {
+        result.set(transaction.account, (result.get(transaction.account) ?? 0) + comparisonAmount(transaction));
+      }
+    }
+  }
+
+  return Array.from(result.entries())
+    .map(([account, amount]) => ({
+      account,
+      name: dataset.accounts.get(account)?.name ?? "Okänt konto",
+      latestResult: roundSek(amount)
+    }))
+    .sort((left, right) => Math.abs(right.latestResult) - Math.abs(left.latestResult) || left.account.localeCompare(right.account, "sv", { numeric: true }));
+}
+
+export function getAvailableMonths(dataset: AccountingDataset): number[] {
+  return Array.from(new Set(dataset.vouchers.map((voucher) => monthFromDate(voucher.date)))).sort((a, b) => a - b);
+}
+
+export function formatMonth(month: number): string {
+  return MONTH_LABELS[month - 1] ?? String(month).padStart(2, "0");
+}
+
+function accountMatches(account: string, selectedAccounts: Set<string>): boolean {
+  return selectedAccounts.has(account);
+}
+
+export function buildAccountComparison(
+  dataset: AccountingDataset,
+  selectedAccounts: string[]
+): AccountComparisonMonth[] {
+  const selected = new Set(selectedAccounts);
+  const years = getAvailableYears(dataset);
+  const months = getAvailableMonths(dataset);
+  const totals = new Map<string, number>();
+
+  for (const voucher of dataset.vouchers) {
+    const year = yearFromDate(voucher.date);
+    for (const transaction of voucher.transactions) {
+      if (!accountMatches(transaction.account, selected)) continue;
+      const key = `${year}-${monthFromDate(voucher.date)}`;
+      totals.set(key, (totals.get(key) ?? 0) + comparisonAmount(transaction));
+    }
+  }
+
+  return months.map((month) => ({
+    month: String(month).padStart(2, "0"),
+    label: formatMonth(month),
+    years: Object.fromEntries(years.map((year) => [String(year), roundSek(totals.get(`${year}-${month}`) ?? 0)]))
+  }));
+}
+
+export function buildAccountCategoryComparison(
+  dataset: AccountingDataset,
+  selectedAccounts: string[]
+): AccountComparisonCategory[] {
+  const selected = new Set(selectedAccounts);
+  const years = getAvailableYears(dataset);
+  const totals = new Map<string, Record<string, number>>();
+
+  for (const category of ACCOUNT_CATEGORIES) {
+    totals.set(category.id, Object.fromEntries(years.map((year) => [String(year), 0])));
+  }
+
+  for (const voucher of dataset.vouchers) {
+    const year = String(yearFromDate(voucher.date));
+    for (const transaction of voucher.transactions) {
+      if (!accountMatches(transaction.account, selected)) continue;
+      const category = getAccountCategory(transaction.account);
+      const row = totals.get(category.id);
+      if (row) row[year] += comparisonAmount(transaction);
+    }
+  }
+
+  return ACCOUNT_CATEGORIES
+    .map((category) => ({
+      id: category.id,
+      label: category.label,
+      years: Object.fromEntries(years.map((year) => [String(year), roundSek(totals.get(category.id)?.[String(year)] ?? 0)]))
+    }))
+    .filter((category) => Object.values(category.years).some((value) => value !== 0));
+}
+
+export function buildAccountTransactions(
+  dataset: AccountingDataset,
+  selectedAccounts: string[]
+): AccountComparisonTransaction[] {
+  const selected = new Set(selectedAccounts);
+  const years = getAvailableYears(dataset);
+  const rows = new Map<string, AccountComparisonTransaction>();
+
+  for (const voucher of dataset.vouchers) {
+    const year = String(yearFromDate(voucher.date));
+    for (const transaction of voucher.transactions) {
+      if (!accountMatches(transaction.account, selected)) continue;
+      const text = transaction.text || voucher.text || "(utan text)";
+      const key = `${transaction.account}:${voucher.date}:${voucher.series}:${voucher.number}:${text}`;
+      const existing = rows.get(key) ?? {
+        account: transaction.account,
+        accountName: dataset.accounts.get(transaction.account)?.name ?? "Okänt konto",
+        date: formatSieDate(voucher.date),
+        voucher: `${voucher.series}${voucher.number}`,
+        text,
+        years: Object.fromEntries(years.map((availableYear) => [String(availableYear), 0]))
+      };
+      existing.years[year] += comparisonAmount(transaction);
+      rows.set(key, existing);
+    }
+  }
+
+  return Array.from(rows.values()).sort((a, b) =>
+    `${a.account} ${a.date} ${a.voucher}`.localeCompare(`${b.account} ${b.date} ${b.voucher}`, "sv", { numeric: true })
+  );
 }
 
 function classifyResultTransaction(transaction: Transaction): "income" | "cost" | null {
@@ -321,5 +482,10 @@ export function formatSek(value: number): string {
 }
 
 export function formatThousands(value: number): string {
-  return `${new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 }).format(value / 1000)} tkr`;
+  const showDecimals = Math.abs(value) < 1000;
+  const displayValue = Math.abs(value) < 5 ? 0 : value / 1000;
+  return `${new Intl.NumberFormat("sv-SE", {
+    minimumFractionDigits: showDecimals ? 2 : 0,
+    maximumFractionDigits: showDecimals ? 2 : 0
+  }).format(displayValue)} tkr`;
 }

@@ -415,6 +415,186 @@
   margin: 0;
 }
 
+.accountFilters {
+  align-items: start;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 210px minmax(0, 1fr);
+  margin: 26px 0 16px;
+  padding: 18px;
+}
+
+.filterLabel,
+.monthPicker span {
+  color: var(--muted);
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.accountFilters > div:first-child strong {
+  display: block;
+  margin-top: 8px;
+}
+
+.accountFilters small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.8rem;
+  margin-top: 5px;
+}
+
+.accountChoices {
+  gap: 7px 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: grid;
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.accountSelector {
+  min-width: 0;
+}
+
+.accountSearch {
+  background: #f9faf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 38px;
+  padding: 0 11px;
+  width: 100%;
+}
+
+.accountSelectorMeta {
+  color: var(--muted);
+  display: block;
+  font-size: 0.78rem;
+  margin: 8px 0;
+}
+
+.accountChoice,
+.accountChoiceSelected {
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.accountChoiceSelected {
+  background: #e6f0eb;
+  border-color: var(--accent);
+}
+
+.accountChoice input,
+.accountChoiceSelected input {
+  accent-color: var(--accent);
+}
+
+.accountChoice span,
+.accountChoiceSelected span {
+  min-width: 0;
+}
+
+.accountChoice > em,
+.accountChoiceSelected > em {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.accountPositive {
+  color: var(--income) !important;
+}
+
+.accountNegative {
+  color: var(--cost) !important;
+}
+
+.accountChoice span strong,
+.accountChoiceSelected span strong {
+  display: block;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 1100px) {
+  .accountFilters {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .monthPicker {
+    grid-column: 1 / -1;
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 760px) {
+  .accountFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .accountChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .monthPicker {
+    grid-column: auto;
+  }
+}
+
+.monthPicker select {
+  background: #f9faf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 8px;
+  min-height: 38px;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.accountChart {
+  align-items: end;
+  display: grid;
+  gap: 8px;
+  height: 330px;
+  margin: 26px 0 0;
+  overflow-x: auto;
+  padding: 8px 0 0;
+}
+
+.accountBars {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 3px;
+  height: 280px;
+  justify-content: center;
+}
+
+.accountBars span {
+  border-radius: 5px 5px 0 0;
+  display: block;
+  min-height: 0;
+  width: 13px;
+}
+
+.accountYearDot {
+  border-radius: 999px;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
 .forecastList,
 .categoryList {
   display: grid;

@@ -85,6 +85,10 @@ function MonthlyReportPageContent() {
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
           </a>
+          <a href="/reports/accounts">
+            <BarChart3 size={18} aria-hidden="true" />
+            Kontojämförelse
+          </a>
           <a href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat

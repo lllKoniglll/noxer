@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { formatThousands } from "@/lib/reports/accounting";
 import styles from "./page.module.css";
 
 export type SortableTableColumn = {
@@ -41,7 +42,7 @@ function isSummableColumn(column: SortableTableColumn) {
 function formatCell(value: unknown, column: SortableTableColumn) {
   if (isNumeric(value)) {
     if (column.format === "thousands") {
-      return `${new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 }).format(value / 1000)} tkr`;
+      return formatThousands(value);
     }
     return new Intl.NumberFormat("sv-SE", { maximumFractionDigits: column.format === "integer" ? 0 : 2 }).format(value);
   }

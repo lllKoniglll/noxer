@@ -51,3 +51,20 @@ docker compose up -d
 docker compose ps
 docker compose logs --tail=100
 ```
+
+Det finns också ett deployskript som kör samma säkra uppdatering och kontroller
+att webbens health-endpoint svarar. Kör det som macOS-användaren `server`:
+
+```bash
+cd /Users/server/server/stacks/noxer
+bash scripts/deploy-server.sh
+```
+
+För att testa en branch på servern innan merge till `main`:
+
+```bash
+NOXER_DEPLOY_BRANCH=codex/monthly-account-comparison bash scripts/deploy-server.sh
+```
+
+Skriptet använder `docker compose up -d --build`; `down` behövs inte och den
+centrala Caddy-, Cloudflare- eller Authentik-stacken ändras inte.

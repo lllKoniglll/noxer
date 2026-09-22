@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:all": "bash scripts/dev-all.sh",
+    "deploy:server": "bash scripts/deploy-server.sh",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
