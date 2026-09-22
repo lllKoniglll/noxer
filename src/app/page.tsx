@@ -158,16 +158,16 @@ function MonthlyReportPageContent() {
 
           <div className={styles.legend} aria-label="Diagramförklaring">
             <span>
-              <i className={styles.incomeDot} /> Intäkter {selectedYear}
-            </span>
-            <span>
               <i className={styles.incomePreviousDot} /> Intäkter {selectedYear - 1}
             </span>
             <span>
-              <i className={styles.costDot} /> Kostnader {selectedYear}
+              <i className={styles.costPreviousDot} /> Kostnader {selectedYear - 1}
             </span>
             <span>
-              <i className={styles.costPreviousDot} /> Kostnader {selectedYear - 1}
+              <i className={styles.incomeDot} /> Intäkter {selectedYear}
+            </span>
+            <span>
+              <i className={styles.costDot} /> Kostnader {selectedYear}
             </span>
           </div>
 
@@ -180,28 +180,24 @@ function MonthlyReportPageContent() {
               <div className={styles.month} key={row.month}>
                 <div className={styles.comparisonBars}>
                   <span
+                    title={`Intäkter ${selectedYear - 1}: ${formatThousands(row.previousYearIncome)}`}
+                    style={{ height: `${Math.max((row.previousYearIncome / maxBar) * 100, row.previousYearIncome ? 2 : 0)}%` }}
+                    className={styles.incomePrevious}
+                  />
+                  <span
+                    title={`Kostnader ${selectedYear - 1}: ${formatThousands(row.previousYearCosts)}`}
+                    style={{ height: `${Math.max((row.previousYearCosts / maxBar) * 100, row.previousYearCosts ? 2 : 0)}%` }}
+                    className={styles.costPrevious}
+                  />
+                  <span
                     title={`Intäkter ${selectedYear}: ${formatThousands(row.income)}`}
                     style={{ height: `${Math.max((row.income / maxBar) * 100, row.income ? 2 : 0)}%` }}
                     className={styles.income}
                   />
                   <span
-                    title={`Intäkter ${selectedYear - 1}: ${formatThousands(row.previousYearIncome)}`}
-                    style={{
-                      height: `${Math.max((row.previousYearIncome / maxBar) * 100, row.previousYearIncome ? 2 : 0)}%`
-                    }}
-                    className={styles.incomePrevious}
-                  />
-                  <span
                     title={`Kostnader ${selectedYear}: ${formatThousands(row.costs)}`}
                     style={{ height: `${Math.max((row.costs / maxBar) * 100, row.costs ? 2 : 0)}%` }}
                     className={styles.cost}
-                  />
-                  <span
-                    title={`Kostnader ${selectedYear - 1}: ${formatThousands(row.previousYearCosts)}`}
-                    style={{
-                      height: `${Math.max((row.previousYearCosts / maxBar) * 100, row.previousYearCosts ? 2 : 0)}%`
-                    }}
-                    className={styles.costPrevious}
                   />
                 </div>
                 <strong>{row.label}</strong>
@@ -212,12 +208,12 @@ function MonthlyReportPageContent() {
           <SortableTable
             columns={[
               { key: "month", label: "Månad", format: "text", summable: false },
-              { key: "income", label: `Intäkter ${selectedYear}`, format: "thousands", tone: "income" },
               { key: "previousYearIncome", label: `Intäkter ${selectedYear - 1}`, format: "thousands", tone: "income" },
-              { key: "costs", label: `Kostnader ${selectedYear}`, format: "thousands", tone: "cost" },
               { key: "previousYearCosts", label: `Kostnader ${selectedYear - 1}`, format: "thousands", tone: "cost" },
-              { key: "result", label: `Resultat ${selectedYear}`, format: "thousands", tone: "result" },
-              { key: "previousYearResult", label: `Resultat ${selectedYear - 1}`, format: "thousands", tone: "result" }
+              { key: "previousYearResult", label: `Resultat ${selectedYear - 1}`, format: "thousands", tone: "result" },
+              { key: "income", label: `Intäkter ${selectedYear}`, format: "thousands", tone: "income" },
+              { key: "costs", label: `Kostnader ${selectedYear}`, format: "thousands", tone: "cost" },
+              { key: "result", label: `Resultat ${selectedYear}`, format: "thousands", tone: "result" }
             ]}
             rows={monthlyRows.map((row) => ({
               month: row.label,

@@ -460,6 +460,58 @@
   min-width: 0;
 }
 
+.categoryChoices {
+  display: grid;
+  gap: 7px 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 8px 0 16px;
+}
+
+.categoryChoice,
+.categoryChoiceSelected {
+  align-items: center;
+  background: #f9faf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.categoryChoiceSelected {
+  background: #e6f0eb;
+  border-color: var(--accent);
+}
+
+.categoryChoice input,
+.categoryChoiceSelected input {
+  accent-color: var(--accent);
+}
+
+.categoryChoice span,
+.categoryChoiceSelected span {
+  min-width: 0;
+}
+
+.categoryChoice span strong,
+.categoryChoiceSelected span strong {
+  display: block;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.categoryChoice small,
+.categoryChoiceSelected small {
+  color: var(--muted);
+  display: block;
+  font-size: 0.74rem;
+  margin-top: 2px;
+}
+
 .accountSearch {
   background: #f9faf8;
   border: 1px solid var(--line);
@@ -544,6 +596,10 @@
   }
 
   .accountChoices {
+    grid-template-columns: 1fr;
+  }
+
+  .categoryChoices {
     grid-template-columns: 1fr;
   }
 
@@ -890,6 +946,11 @@
   margin: 0;
 }
 
+.tableHint {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .tableHeader input {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -962,6 +1023,82 @@
 
 .totalAmount {
   font-weight: 900;
+}
+
+.categoryToggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  gap: 7px;
+  padding: 0;
+  text-align: left;
+}
+
+.categoryToggle span {
+  display: grid;
+  gap: 2px;
+}
+
+.categoryToggle small {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.categoryChevronOpen {
+  transform: rotate(90deg);
+}
+
+.categoryDetails {
+  background: var(--panel-muted);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.categoryDetails > strong {
+  font-size: 0.86rem;
+}
+
+.categoryDetailsTable {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.categoryDetailsTable th,
+.categoryDetailsTable td {
+  border-top: 1px solid var(--line);
+  padding: 8px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.categoryDetailsTable th:first-child,
+.categoryDetailsTable td:first-child {
+  text-align: left;
+}
+
+.categoryDetailsTable th {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.betterText {
+  color: var(--income);
+  font-weight: 800;
+}
+
+.worseText {
+  color: var(--cost);
+  font-weight: 800;
+}
+
+.neutralText {
+  color: var(--muted);
+  font-weight: 700;
 }
 
 @keyframes spin {

@@ -47,6 +47,13 @@ export type AccountComparisonTransaction = {
   years: Record<string, number>;
 };
 
+export type CategoryAccountSummary = {
+  account: string;
+  name: string;
+  amount: number;
+  previousAmount: number;
+};
+
 export type AccountActivity = {
   account: string;
   name: string;
@@ -56,7 +63,7 @@ export type AccountActivity = {
 export type ComparisonMode = "fullYear" | "samePeriod";
 
 export function parseComparisonMode(value: string | string[] | undefined): ComparisonMode {
-  return value === "samePeriod" ? "samePeriod" : "fullYear";
+  return value === "fullYear" ? "fullYear" : "samePeriod";
 }
 
 function yearFromDate(date: string): number {
@@ -402,7 +409,7 @@ export function buildCategorySummary(
       const row = summary.get(category.id);
       if (!row) continue;
 
-      const signed = transaction.account.startsWith("3") ? -transaction.amount : transaction.amount;
+      const signed = comparisonAmount(transaction);
       if (year === selectedYear) row.amount += signed;
       if (year === selectedYear - 1) row.previousAmount += signed;
     }
@@ -415,6 +422,42 @@ export function buildCategorySummary(
       previousAmount: roundSek(row.previousAmount)
     }))
     .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+}
+
+export function buildCategoryAccountSummary(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  comparisonMode: ComparisonMode,
+  categoryId: string
+): CategoryAccountSummary[] {
+  const summary = new Map<string, CategoryAccountSummary>();
+  const previousCutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
+
+  for (const voucher of dataset.vouchers) {
+    const year = yearFromDate(voucher.date);
+    if (year !== selectedYear && year !== selectedYear - 1) continue;
+    if (year === selectedYear - 1 && previousCutoff && voucher.date > previousCutoff) continue;
+
+    for (const transaction of voucher.transactions) {
+      if (!classifyResultTransaction(transaction)) continue;
+      if (getAccountCategory(transaction.account).id !== categoryId) continue;
+
+      const row = summary.get(transaction.account) ?? {
+        account: transaction.account,
+        name: dataset.accounts.get(transaction.account)?.name ?? "Okänt konto",
+        amount: 0,
+        previousAmount: 0
+      };
+      const signed = comparisonAmount(transaction);
+      if (year === selectedYear) row.amount += signed;
+      if (year === selectedYear - 1) row.previousAmount += signed;
+      summary.set(transaction.account, row);
+    }
+  }
+
+  return Array.from(summary.values())
+    .map((row) => ({ ...row, amount: roundSek(row.amount), previousAmount: roundSek(row.previousAmount) }))
+    .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount) || a.account.localeCompare(b.account, "sv", { numeric: true }));
 }
 
 function cashOpeningBalance(dataset: AccountingDataset): number {

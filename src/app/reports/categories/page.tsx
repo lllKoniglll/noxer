@@ -1,15 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Fragment, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, ChevronRight, Download, Landmark, LineChart } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
-import { SortableTable } from "@/app/sortable-table";
 import {
+  buildCategoryAccountSummary,
   buildCategorySummary,
   comparisonCutoffDate,
   comparisonModeLabel,
   emptyAccountingDataset,
+  formatThousands,
   formatSieDate,
   getAvailableYears,
   loadAccountingDataset,
@@ -19,18 +20,24 @@ import { useUploads } from "@/app/upload-context";
 import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
 
-function percentChange(current: number, previous: number): string {
-  if (!previous) return "Nytt jämförelsetal";
-  const change = ((current - previous) / Math.abs(previous)) * 100;
-  return `${change >= 0 ? "+" : ""}${Math.round(change)}%`;
-}
-
 const INCOME_CATEGORY_IDS = new Set(["fees", "grants", "sales"]);
+
+function comparisonResult(current: number, previous: number) {
+  if (!previous) return { label: "Nytt jämförelsetal", className: styles.neutralText };
+  if (current === previous) return { label: "Oförändrat", className: styles.neutralText };
+  const change = ((current - previous) / Math.abs(previous)) * 100;
+  const improved = current > previous;
+  return {
+    label: `${change >= 0 ? "+" : ""}${Math.round(change)}% · ${improved ? "Bättre" : "Sämre"}`,
+    className: improved ? styles.betterText : styles.worseText
+  };
+}
 
 function CategoriesReportPageContent() {
   const params = useSearchParams();
   const { files } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   useEffect(() => { loadAccountingDataset(files).then(setDataset); }, [files]);
   const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
@@ -102,26 +109,64 @@ function CategoriesReportPageContent() {
           <div className={styles.panelHeader}>
             <div>
               <span>Kategorier</span>
-              <h2>Utfall jämfört med {comparisonLabel.toLowerCase()}</h2>
+              <h2>Nettoresultat jämfört med {comparisonLabel.toLowerCase()}</h2>
             </div>
           </div>
-          <SortableTable
-            columns={[
-              { key: "category", label: "Kategori", format: "text", summable: false },
-              { key: "amount", label: String(selectedYear), format: "thousands" },
-              { key: "previousAmount", label: String(selectedYear - 1), format: "thousands" },
-              { key: "change", label: "Förändring", format: "text", summable: false }
-            ]}
-            rows={categories.map((category) => ({
-              Typ: INCOME_CATEGORY_IDS.has(category.id) ? "Intäkt" : "Kostnad",
-              category: category.label,
-              amount: category.amount,
-              previousAmount: category.previousAmount,
-              change: percentChange(category.amount, category.previousAmount)
-            }))}
-            title="Kategoridata"
-            wide
-          />
+          <div className={`${styles.chatTable} ${styles.wideTable}`}>
+            <div className={styles.tableHeader}>
+              <h3>Kategoridata</h3>
+              <span className={styles.tableHint}>Klicka på en kategori för att visa kontona</span>
+            </div>
+            <div className={styles.tableScroll}>
+              <table>
+                <thead>
+                  <tr><th>Kategori</th><th>{selectedYear - 1}</th><th>{selectedYear}</th><th>Förändring</th></tr>
+                </thead>
+                <tbody>
+                  {categories.map((category) => {
+                    const isIncome = INCOME_CATEGORY_IDS.has(category.id);
+                    const result = comparisonResult(category.amount, category.previousAmount);
+                    const isExpanded = expandedCategory === category.id;
+                    const accounts = isExpanded ? buildCategoryAccountSummary(dataset, selectedYear, comparisonMode, category.id) : [];
+                    return (
+                      <Fragment key={category.id}>
+                        <tr>
+                          <td>
+                            <button
+                              aria-expanded={isExpanded}
+                              className={styles.categoryToggle}
+                              onClick={() => setExpandedCategory(isExpanded ? null : category.id)}
+                              type="button"
+                            >
+                              <ChevronRight className={isExpanded ? styles.categoryChevronOpen : undefined} size={17} aria-hidden="true" />
+                              <span><strong>{category.label}</strong><small>{isIncome ? "Intäkt" : "Kostnad"}</small></span>
+                            </button>
+                          </td>
+                          <td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(category.previousAmount)}</td>
+                          <td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(category.amount)}</td>
+                          <td className={result.className}>{result.label}</td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr key={`${category.id}-details`}>
+                            <td colSpan={4}>
+                              <div className={styles.categoryDetails}>
+                                <strong>Konton i {category.label}</strong>
+                                <table className={styles.categoryDetailsTable}>
+                                  <thead><tr><th>Konto</th><th>{selectedYear - 1}</th><th>{selectedYear}</th></tr></thead>
+                                  <tbody>{accounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(account.previousAmount)}</td><td className={isIncome ? styles.incomeText : styles.costText}>{formatThousands(account.amount)}</td></tr>)}</tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+                <tfoot><tr><td>Summa</td><td>{formatThousands(categories.reduce((sum, category) => sum + category.previousAmount, 0))}</td><td>{formatThousands(categories.reduce((sum, category) => sum + category.amount, 0))}</td><td /></tr></tfoot>
+              </table>
+            </div>
+          </div>
         </article>
       </section>
     </main>

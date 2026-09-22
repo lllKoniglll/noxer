@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
 import { SortableTable } from "@/app/sortable-table";
+import { getAccountCategory, ACCOUNT_CATEGORIES } from "@/lib/reports/categories";
 import {
   buildAccountCategoryComparison,
   buildAccountComparison,
@@ -32,6 +33,10 @@ function AccountComparisonPageContent() {
   }, [files]);
 
   const accountOptions = getAccountActivity(dataset);
+  const categoryOptions = ACCOUNT_CATEGORIES.map((category) => ({
+    ...category,
+    accounts: accountOptions.filter((item) => getAccountCategory(item.account).id === category.id)
+  })).filter((category) => category.accounts.length > 0);
   const normalizedAccountFilter = accountFilter.trim().toLowerCase();
   const visibleAccountOptions = normalizedAccountFilter
     ? accountOptions.filter((item) => `${item.account} ${item.name}`.toLowerCase().includes(normalizedAccountFilter))
@@ -45,6 +50,14 @@ function AccountComparisonPageContent() {
 
   function toggleAccount(account: string) {
     setSelectedAccounts((current) => current.includes(account) ? current.filter((item) => item !== account) : [...current, account]);
+  }
+
+  function toggleCategory(categoryAccounts: string[]) {
+    setSelectedAccounts((current) => {
+      const allSelected = categoryAccounts.every((account) => current.includes(account));
+      if (allSelected) return current.filter((account) => !categoryAccounts.includes(account));
+      return Array.from(new Set([...current, ...categoryAccounts]));
+    });
   }
 
   if (!files.length) {
@@ -88,6 +101,20 @@ function AccountComparisonPageContent() {
             <small>Markera ett eller flera konton som ska summeras.</small>
           </div>
           <div className={styles.accountSelector}>
+            <span className={styles.filterLabel}>Kategorier</span>
+            <div className={styles.categoryChoices}>
+              {categoryOptions.map((category) => {
+                const categoryAccounts = category.accounts.map((item) => item.account);
+                const allSelected = categoryAccounts.every((account) => selectedAccounts.includes(account));
+                return (
+                  <label className={allSelected ? styles.categoryChoiceSelected : styles.categoryChoice} key={category.id}>
+                    <input checked={allSelected} onChange={() => toggleCategory(categoryAccounts)} type="checkbox" />
+                    <span><strong>{category.label}</strong><small>{categoryAccounts.length} konton</small></span>
+                  </label>
+                );
+              })}
+            </div>
+            <span className={styles.filterLabel}>Konton</span>
             <input
               aria-label="Filtrera konton"
               className={styles.accountSearch}
