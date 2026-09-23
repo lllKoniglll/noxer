@@ -6,6 +6,7 @@ type StoredFile = { name: string; size: number };
 type UploadContextValue = {
   files: File[];
   setFiles: (files: File[]) => void;
+  removeFile: (file: File) => void;
   clearFiles: () => void;
   isLoading: boolean;
   storageError: string | null;
@@ -92,7 +93,19 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     })();
   };
 
-  const value = { files, setFiles: replaceFiles, clearFiles: removeFiles, isLoading, storageError, group };
+  const removeFile = (file: File) => {
+    void (async () => {
+      try {
+        const response = await fetch(`/api/files/${encodeURIComponent(file.name)}`, { method: "DELETE" });
+        if (!response.ok) throw new Error(`Kunde inte radera ${file.name}`);
+        await refresh();
+      } catch (error) {
+        setStorageError(error instanceof Error ? error.message : "Filen kunde inte raderas");
+      }
+    })();
+  };
+
+  const value = { files, setFiles: replaceFiles, removeFile, clearFiles: removeFiles, isLoading, storageError, group };
   return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;
 }
 

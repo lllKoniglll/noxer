@@ -1,246 +1,97 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
-import { ComparisonToggle } from "@/app/report-controls";
-import { SortableTable } from "@/app/sortable-table";
-import {
-  buildMonthlyReport,
-  comparisonCutoffDate,
-  comparisonModeLabel,
-  emptyAccountingDataset,
-  formatSieDate,
-  formatThousands,
-  getAvailableYears,
-  loadAccountingDataset,
-  parseComparisonMode
-} from "@/lib/reports/accounting";
+import { useEffect, useMemo, useState } from "react";
+import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
 import { useUploads } from "@/app/upload-context";
-import type { AccountingDataset } from "@/lib/sie/types";
+import { parseBudgetBuffer } from "@/lib/budget/parser";
+import { buildBudgetCategorySummary, buildCashForecast, buildProjectedResult, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
+import type { AccountingDataset, BudgetDataset } from "@/lib/sie/types";
 import styles from "./page.module.css";
 
-function percentChange(current: number, previous: number): string {
-  if (!previous) return "Nytt jämförelsetal";
-  const change = ((current - previous) / Math.abs(previous)) * 100;
-  return `${change >= 0 ? "+" : ""}${Math.round(change)}% mot föregående år`;
+function resultClass(value: number): string | undefined {
+  if (value > 0) return styles.incomeText;
+  if (value < 0) return styles.costText;
+  return undefined;
 }
 
-function MonthlyReportPageContent() {
-  const params = useSearchParams();
+export default function OverviewPage() {
   const { files } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
-  useEffect(() => {
-    loadAccountingDataset(files).then(setDataset);
-  }, [files]);
-  const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
-  const comparisonQuery = `?comparison=${comparisonMode}`;
-  const years = getAvailableYears(dataset);
-  const selectedYear = years.at(-1) ?? 2026;
-  const monthlyRows = buildMonthlyReport(dataset, selectedYear, comparisonMode);
-  const cutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
-  const comparisonLabel = comparisonModeLabel(comparisonMode);
-  const currentIncome = monthlyRows.reduce((sum, row) => sum + row.income, 0);
-  const currentCosts = monthlyRows.reduce((sum, row) => sum + row.costs, 0);
-  const currentResult = currentIncome - currentCosts;
-  const previousIncome = monthlyRows.reduce((sum, row) => sum + row.previousYearIncome, 0);
-  const previousCosts = monthlyRows.reduce((sum, row) => sum + row.previousYearCosts, 0);
-  const previousResult = previousIncome - previousCosts;
-  const maxBar = Math.max(
-    ...monthlyRows.flatMap((row) => [
-      row.income,
-      row.costs,
-      row.previousYearIncome,
-      row.previousYearCosts
-    ]),
-    1
-  );
-  const actualMonths = monthlyRows.filter((row) => row.income !== 0 || row.costs !== 0).length;
+  const [budget, setBudget] = useState<BudgetDataset | undefined>();
 
-  if (!files.length) {
-    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
-  }
+  useEffect(() => { void loadAccountingDataset(files).then(setDataset); }, [files]);
+  useEffect(() => {
+    let active = true;
+    const budgetFile = files.filter((file) => file.name.toLowerCase().endsWith(".xls")).at(-1);
+    if (!budgetFile) { setBudget(undefined); return () => { active = false; }; }
+    void budgetFile.arrayBuffer().then((buffer) => {
+      try {
+        const parsed = parseBudgetBuffer(new Uint8Array(buffer), budgetFile.name);
+        if (active) setBudget(parsed);
+      } catch {
+        if (active) setBudget(undefined);
+      }
+    });
+    return () => { active = false; };
+  }, [files]);
+
+  const year = budget?.year ?? (Number(dataset.latestVoucherDate?.slice(0, 4)) || new Date().getFullYear());
+  const projectedResult = buildProjectedResult(dataset, year, "latestDate");
+  const categories = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget).filter((category) => category.id !== "other").slice(0, 6) : [], [dataset, budget]);
+  const budgetTotals = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget).reduce((sum, category) => ({ budget: sum.budget + category.budget, actual: sum.actual + category.actual, variance: sum.variance + category.variance }), { budget: 0, actual: 0, variance: 0 }) : undefined, [dataset, budget]);
+  const maxVariance = Math.max(...categories.map((category) => Math.abs(category.variance)), Math.abs(budgetTotals?.variance ?? 0), 1);
+  const latestDate = dataset.latestVoucherDate;
+  const cashForecast = buildCashForecast(dataset, year, "latestDate");
+  const currentCash = [...cashForecast].reverse().find((point) => point.actual !== null)?.actual ?? 0;
 
   return (
     <main className={styles.shell}>
       <aside className={styles.sidebar} aria-label="Rapporter">
-        <div className={styles.brand}>
-          <Landmark size={26} aria-hidden="true" />
-          <div>
-            <strong>Kronängs IF</strong>
-            <span>Styrelserapport</span>
-          </div>
-        </div>
-
+        <div className={styles.brand}><Landmark size={26} aria-hidden="true" /><div><strong>Kronängs IF</strong><span>Styrelserapport</span></div></div>
         <nav className={styles.nav}>
-          <a className={styles.active} href="/">
-            <BarChart3 size={18} aria-hidden="true" />
-            Månadsöversikt
-          </a>
-          <a href={`/reports/liquidity${comparisonQuery}`}>
-            <LineChart size={18} aria-hidden="true" />
-            Likviditet
-          </a>
-          <a href={`/reports/categories${comparisonQuery}`}>
-            <CalendarRange size={18} aria-hidden="true" />
-            Kategorier
-          </a>
-          <a href="/reports/accounts">
-            <BarChart3 size={18} aria-hidden="true" />
-            Kontojämförelse
-          </a>
-          <a href="/chat">
-            <Bot size={18} aria-hidden="true" />
-            Chat
-          </a>
+          <a className={styles.active} href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
+          <a href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</a>
+          <a href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</a>
+          <a href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</a>
+          <a href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</a>
+          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
+          <a href="/chat"><Bot size={18} aria-hidden="true" />Chat</a>
+          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
         </nav>
       </aside>
 
       <section className={styles.workspace}>
         <header className={styles.topbar}>
-          <div>
-            <p>{dataset.organizationName}</p>
-            <h1>Månadsöversikt {selectedYear}</h1>
-            <span className={styles.fileStatus}>
-              {dataset.files.length} SIE4-filer inlästa, senaste verifikation {dataset.latestVoucherDate}
-            </span>
-          </div>
-          <div className={styles.actions}>
-            <ComparisonToggle
-              activeMode={comparisonMode}
-              basePath="/"
-              cutoffLabel={cutoff ? `Jämför t.o.m. ${formatSieDate(cutoff)}` : undefined}
-            />
-            <button type="button" title="Exportera aktuell styrelsevy">
-              <Download size={18} aria-hidden="true" />
-              Excel
-            </button>
-          </div>
+          <div><p>{dataset.organizationName}</p><h1>Översikt {year}</h1><span className={styles.fileStatus}>{latestDate ? `Utfall t.o.m. ${latestDate}` : "Ladda upp underlag på sidan Filer"}</span></div>
         </header>
 
-        <section className={styles.kpis} aria-label="Nyckeltal">
-          <article>
-            <span>Intäkter hittills</span>
-            <strong>{formatThousands(currentIncome)}</strong>
-            <small>{percentChange(currentIncome, previousIncome)}</small>
-          </article>
-          <article>
-            <span>Kostnader hittills</span>
-            <strong>{formatThousands(currentCosts)}</strong>
-            <small>{percentChange(currentCosts, previousCosts)}</small>
-          </article>
-          <article>
-            <span>Resultat</span>
-            <strong>{formatThousands(currentResult)}</strong>
-            <small>{percentChange(currentResult, previousResult)}</small>
-          </article>
-          <article>
-            <span>Period</span>
-            <strong>{actualMonths}/12 mån</strong>
-            <small>Diagrammet visar hela året</small>
-          </article>
-        </section>
+        {!files.length ? <div className={styles.emptyState}><BarChart3 size={32} aria-hidden="true" /><h2>Översikten fylls när du laddar upp underlag</h2><p>Ladda upp SIE4-filer och gärna resultatrapporten med budget på sidan Filer.</p></div> : (
+          <>
+            <section className={styles.dashboardHero} aria-label="Viktigaste ekonomiska nyckeltalen">
+              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Prognostiserat saldo 31 december minus saldo 1 januari</small><a href="/reports/liquidity">Visa likviditetsprognos</a></article>
+              <article className={styles.dashboardBudgetCard}><span>Utfall mot budget</span><strong className={resultClass(budgetTotals?.variance ?? 0)}>{budgetTotals ? formatThousands(budgetTotals.variance) : "saknas"}</strong><small>{budgetTotals ? `Utfall ${formatThousands(budgetTotals.actual)} mot budget ${formatThousands(budgetTotals.budget)}` : "Ladda upp en .xls-budget på sidan Filer"}</small><a href="/reports/budget">Visa budgetuppföljning</a></article>
+            </section>
 
-        <article className={styles.panel}>
-          <div className={styles.panelHeader}>
-            <div>
-            <span>Resultat per månad</span>
-              <h2>Intäkter och kostnader jämfört med {comparisonLabel.toLowerCase()}</h2>
-            </div>
-            <select aria-label="Välj år" defaultValue={selectedYear}>
-              {years.map((year) => (
-                <option key={year} value={year}>
-                  {year} mot {year - 1}
-                </option>
-              ))}
-            </select>
-          </div>
+            <section className={styles.kpis} aria-label="Övriga nyckeltal">
+              <article><span>Senast faktiskt saldo</span><strong>{formatThousands(currentCash)}</strong><small>Bank- och kassakonton</small></article>
+              <article><span>Senaste utfall</span><strong>{latestDate ?? "saknas"}</strong><small>Senaste bokförda datum</small></article>
+              <article><span>Underlag</span><strong>{files.length}</strong><small>Inlästa filer</small></article>
+              <article><span>Budget</span><strong>{budget ? budget.year : "saknas"}</strong><small>{budget ? `${budget.rows.length} budgeterade konton` : "Ingen budgetfil"}</small></article>
+            </section>
 
-          <div className={styles.legend} aria-label="Diagramförklaring">
-            <span>
-              <i className={styles.incomePreviousDot} /> Intäkter {selectedYear - 1}
-            </span>
-            <span>
-              <i className={styles.costPreviousDot} /> Kostnader {selectedYear - 1}
-            </span>
-            <span>
-              <i className={styles.incomeDot} /> Intäkter {selectedYear}
-            </span>
-            <span>
-              <i className={styles.costDot} /> Kostnader {selectedYear}
-            </span>
-          </div>
-
-          <div
-            className={styles.yearChart}
-            style={{ gridTemplateColumns: `repeat(${monthlyRows.length}, minmax(38px, 1fr))` }}
-            aria-label="Helårsdiagram över intäkter och kostnader"
-          >
-            {monthlyRows.map((row) => (
-              <div className={styles.month} key={row.month}>
-                <div className={styles.comparisonBars}>
-                  <span
-                    data-tooltip={`Intäkter ${selectedYear - 1}: ${formatThousands(row.previousYearIncome)}`}
-                    title={`Intäkter ${selectedYear - 1}: ${formatThousands(row.previousYearIncome)}`}
-                    style={{ height: `${Math.max((row.previousYearIncome / maxBar) * 100, row.previousYearIncome ? 2 : 0)}%` }}
-                    className={styles.incomePrevious}
-                  />
-                  <span
-                    data-tooltip={`Kostnader ${selectedYear - 1}: ${formatThousands(row.previousYearCosts)}`}
-                    title={`Kostnader ${selectedYear - 1}: ${formatThousands(row.previousYearCosts)}`}
-                    style={{ height: `${Math.max((row.previousYearCosts / maxBar) * 100, row.previousYearCosts ? 2 : 0)}%` }}
-                    className={styles.costPrevious}
-                  />
-                  <span
-                    data-tooltip={`Intäkter ${selectedYear}: ${formatThousands(row.income)}`}
-                    title={`Intäkter ${selectedYear}: ${formatThousands(row.income)}`}
-                    style={{ height: `${Math.max((row.income / maxBar) * 100, row.income ? 2 : 0)}%` }}
-                    className={styles.income}
-                  />
-                  <span
-                    data-tooltip={`Kostnader ${selectedYear}: ${formatThousands(row.costs)}`}
-                    title={`Kostnader ${selectedYear}: ${formatThousands(row.costs)}`}
-                    style={{ height: `${Math.max((row.costs / maxBar) * 100, row.costs ? 2 : 0)}%` }}
-                    className={styles.cost}
-                  />
+            <article className={`${styles.panel} ${styles.dashboardBudgetPanel}`}>
+              <div className={`${styles.panelHeader} ${styles.dashboardPanelHeader}`}><div><span>Budgetuppföljning</span><h2>Vad avviker mest mot budget?</h2></div><a className={styles.panelLink} href="/reports/budget">Öppna hela rapporten</a></div>
+              {!budget ? <p className={`${styles.copy} ${styles.dashboardLead}`}>Ladda upp resultatrapporten i `.xls`-format för att se kategoriavvikelser här.</p> : <>
+                <p className={`${styles.copy} ${styles.dashboardLead}`}>Grönt betyder bättre resultat än budget. Kostnader är negativa, så en mindre kostnad ger en positiv avvikelse.</p>
+                <div className={styles.budgetVarianceChart} aria-label="Avvikelse mot budget per kategori">
+                  {categories.map((category) => <div className={styles.budgetVarianceRow} data-tooltip={`${category.label}: ${formatThousands(category.variance)}`} title={`${category.label}: ${formatThousands(category.variance)}`} key={category.id}><strong>{category.label}</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={category.variance >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(category.variance) / maxVariance * 50, 1)}%` }} /></div><span className={category.variance >= 0 ? styles.betterText : styles.worseText}>{formatThousands(category.variance)}</span></div>)}
+                  <div className={`${styles.budgetVarianceRow} ${styles.categoryChangeTotalRow}`}><strong>Resultat</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={(budgetTotals?.variance ?? 0) >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(budgetTotals?.variance ?? 0) / maxVariance * 50, 1)}%` }} /></div><span className={(budgetTotals?.variance ?? 0) >= 0 ? styles.betterText : styles.worseText}>{formatThousands(budgetTotals?.variance ?? 0)}</span></div>
                 </div>
-                <strong>{row.label}</strong>
-              </div>
-            ))}
-          </div>
-
-          <SortableTable
-            columns={[
-              { key: "month", label: "Månad", format: "text", summable: false },
-              { key: "previousYearIncome", label: `Intäkter ${selectedYear - 1}`, format: "thousands", tone: "income" },
-              { key: "previousYearCosts", label: `Kostnader ${selectedYear - 1}`, format: "thousands", tone: "cost" },
-              { key: "previousYearResult", label: `Resultat ${selectedYear - 1}`, format: "thousands", tone: "result" },
-              { key: "income", label: `Intäkter ${selectedYear}`, format: "thousands", tone: "income" },
-              { key: "costs", label: `Kostnader ${selectedYear}`, format: "thousands", tone: "cost" },
-              { key: "result", label: `Resultat ${selectedYear}`, format: "thousands", tone: "result" }
-            ]}
-            rows={monthlyRows.map((row) => ({
-              month: row.label,
-              income: row.income,
-              previousYearIncome: row.previousYearIncome,
-              costs: row.costs,
-              previousYearCosts: row.previousYearCosts,
-              result: row.result,
-              previousYearResult: row.previousYearResult
-            }))}
-            title="Månadsdata"
-            wide
-          />
-        </article>
+              </>}
+            </article>
+          </>
+        )}
       </section>
     </main>
-  );
-}
-
-export default function MonthlyReportPage() {
-  return (
-    <Suspense fallback={<main style={{ padding: 32 }}>Laddar rapport...</main>}>
-      <MonthlyReportPageContent />
-    </Suspense>
   );
 }

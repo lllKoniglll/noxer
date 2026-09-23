@@ -10,7 +10,7 @@ from fastapi import HTTPException, Request
 GROUP_PREFIX = os.getenv("NOXER_WORKSPACE_GROUP_PREFIX", "noxer-workspace-")
 DATA_ROOT = Path(os.getenv("NOXER_DATA_DIR", "/data/noxer")).resolve()
 MAX_FILE_BYTES = int(os.getenv("NOXER_MAX_FILE_BYTES", str(25 * 1024 * 1024)))
-ALLOWED_SUFFIXES = {".se", ".sie", ".se4"}
+ALLOWED_SUFFIXES = {".se", ".sie", ".se4", ".xls"}
 
 
 @dataclass(frozen=True)

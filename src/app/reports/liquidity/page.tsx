@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
 import { SortableTable } from "@/app/sortable-table";
 import {
   buildCashForecast,
@@ -52,7 +52,8 @@ function LiquidityReportPageContent() {
           </div>
         </div>
         <nav className={styles.nav}>
-          <a href={`/${comparisonQuery}`}>
+          <a href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
+          <a href={`/reports/monthly${comparisonQuery}`}>
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
           </a>
@@ -68,10 +69,12 @@ function LiquidityReportPageContent() {
             <BarChart3 size={18} aria-hidden="true" />
             Kontojämförelse
           </a>
+          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
           <a href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat
           </a>
+          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
         </nav>
       </aside>
 
@@ -92,10 +95,6 @@ function LiquidityReportPageContent() {
                 <option value="fullMonth">Föregående hela månad</option>
               </select>
             </label>
-            <button type="button" title="Exportera likviditetsrapport">
-              <Download size={18} aria-hidden="true" />
-              Excel
-            </button>
           </div>
         </header>
 

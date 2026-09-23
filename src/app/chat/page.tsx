@@ -1,4 +1,4 @@
-import { BarChart3, Bot, CalendarRange, Landmark, LineChart } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
 import { ChatClient } from "./chat-client";
 import styles from "../page.module.css";
 
@@ -14,7 +14,8 @@ export default function ChatPage() {
           </div>
         </div>
         <nav className={styles.nav}>
-          <a href="/">
+          <a href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
+          <a href="/reports/monthly">
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
           </a>
@@ -26,10 +27,12 @@ export default function ChatPage() {
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
           </a>
+          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
           <a className={styles.active} href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat
           </a>
+          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
         </nav>
       </aside>
 

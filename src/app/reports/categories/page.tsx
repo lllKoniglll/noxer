@@ -2,7 +2,7 @@
 
 import { Fragment, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BarChart3, Bot, CalendarRange, ChevronRight, Download, Landmark, LineChart } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
 import { ComparisonToggle } from "@/app/report-controls";
 import {
   buildCategoryAccountSummary,
@@ -74,7 +74,8 @@ function CategoriesReportPageContent() {
           </div>
         </div>
         <nav className={styles.nav}>
-          <a href={`/${comparisonQuery}`}>
+          <a href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
+          <a href={`/reports/monthly${comparisonQuery}`}>
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
           </a>
@@ -90,10 +91,12 @@ function CategoriesReportPageContent() {
             <BarChart3 size={18} aria-hidden="true" />
             Kontojämförelse
           </a>
+          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
           <a href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat
           </a>
+          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
         </nav>
       </aside>
 
@@ -110,10 +113,6 @@ function CategoriesReportPageContent() {
               basePath="/reports/categories"
               cutoffLabel={cutoff ? `Jämför t.o.m. ${formatSieDate(cutoff)}` : undefined}
             />
-            <button type="button" title="Exportera kategorirapport">
-              <Download size={18} aria-hidden="true" />
-              Excel
-            </button>
           </div>
         </header>
 

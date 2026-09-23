@@ -81,3 +81,16 @@ export type AccountingDataset = {
   resultBalances: Balance[];
   latestVoucherDate?: string;
 };
+
+export type BudgetRow = {
+  account: string;
+  name: string;
+  amount: number;
+};
+
+export type BudgetDataset = {
+  fileName: string;
+  organizationName: string;
+  year: number;
+  rows: BudgetRow[];
+};

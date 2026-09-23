@@ -6,7 +6,8 @@ import type {
   CategorySummary,
   MonthlyReportRow,
   Transaction,
-  Voucher
+  Voucher,
+  BudgetDataset
 } from "@/lib/sie/types";
 import { ACCOUNT_CATEGORIES, getAccountCategory } from "./categories";
 
@@ -58,6 +59,22 @@ export type AccountActivity = {
   account: string;
   name: string;
   latestResult: number;
+};
+
+export type BudgetCategorySummary = {
+  id: string;
+  label: string;
+  budget: number;
+  actual: number;
+  variance: number;
+};
+
+export type BudgetAccountSummary = {
+  account: string;
+  name: string;
+  budget: number;
+  actual: number;
+  variance: number;
 };
 
 export type ComparisonMode = "fullYear" | "samePeriod";
@@ -165,6 +182,7 @@ export function emptyAccountingDataset(): AccountingDataset {
 export async function loadAccountingDataset(uploadedFiles: File[] = []): Promise<AccountingDataset> {
   const files = await Promise.all(
     uploadedFiles
+      .filter((file) => !file.name.toLowerCase().endsWith(".xls"))
       .map(async (file) => parseSieBuffer(new Uint8Array(await file.arrayBuffer()), file.name))
   );
 
@@ -189,6 +207,52 @@ export async function loadAccountingDataset(uploadedFiles: File[] = []): Promise
     resultBalances: uniqueBalances(files.flatMap((file) => file.resultBalances)),
     latestVoucherDate
   };
+}
+
+function actualAmountsByAccount(dataset: AccountingDataset, year: number): Map<string, number> {
+  const amounts = new Map<string, number>();
+  for (const voucher of dataset.vouchers) {
+    if (yearFromDate(voucher.date) !== year) continue;
+    for (const transaction of voucher.transactions) {
+      if (!classifyResultTransaction(transaction)) continue;
+      amounts.set(transaction.account, (amounts.get(transaction.account) ?? 0) + comparisonAmount(transaction));
+    }
+  }
+  return amounts;
+}
+
+export function buildBudgetAccountSummary(dataset: AccountingDataset, budget: BudgetDataset): BudgetAccountSummary[] {
+  const actuals = actualAmountsByAccount(dataset, budget.year);
+  const accountNames = dataset.accounts;
+  return budget.rows
+    .map((row) => ({
+      account: row.account,
+      name: accountNames.get(row.account)?.name ?? row.name,
+      budget: roundSek(row.amount),
+      actual: roundSek(actuals.get(row.account) ?? 0),
+      variance: roundSek((actuals.get(row.account) ?? 0) - row.amount)
+    }))
+    .sort((left, right) => Math.abs(right.budget) - Math.abs(left.budget) || left.account.localeCompare(right.account, "sv", { numeric: true }));
+}
+
+export function buildBudgetCategorySummary(dataset: AccountingDataset, budget: BudgetDataset): BudgetCategorySummary[] {
+  const accounts = buildBudgetAccountSummary(dataset, budget);
+  const categories = new Map<string, BudgetCategorySummary>();
+  for (const category of ACCOUNT_CATEGORIES) {
+    categories.set(category.id, { id: category.id, label: category.label, budget: 0, actual: 0, variance: 0 });
+  }
+  for (const account of accounts) {
+    const category = getAccountCategory(account.account);
+    const row = categories.get(category.id);
+    if (!row) continue;
+    row.budget += account.budget;
+    row.actual += account.actual;
+    row.variance += account.variance;
+  }
+  return Array.from(categories.values())
+    .map((row) => ({ ...row, budget: roundSek(row.budget), actual: roundSek(row.actual), variance: roundSek(row.variance) }))
+    .filter((row) => row.budget !== 0 || row.actual !== 0)
+    .sort((left, right) => Math.abs(right.actual) - Math.abs(left.actual));
 }
 
 export function getAvailableYears(dataset: AccountingDataset): number[] {

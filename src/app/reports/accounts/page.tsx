@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { BarChart3, Bot, CalendarRange, Download, Landmark, LineChart } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
 import { SortableTable } from "@/app/sortable-table";
 import { getAccountCategory, ACCOUNT_CATEGORIES } from "@/lib/reports/categories";
 import {
@@ -74,11 +74,14 @@ function AccountComparisonPageContent() {
           <div><strong>Kronängs IF</strong><span>Styrelserapport</span></div>
         </div>
         <nav className={styles.nav}>
-          <a href="/"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</a>
+          <a href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
+          <a href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</a>
           <a href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</a>
           <a href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</a>
           <a className={styles.active} href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</a>
+          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
           <a href="/chat"><Bot size={18} aria-hidden="true" />Chat</a>
+          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
         </nav>
       </aside>
 
@@ -90,7 +93,6 @@ function AccountComparisonPageContent() {
             <span className={styles.fileStatus}>Jämför valda konton per månad och år</span>
           </div>
           <div className={styles.actions}>
-            <button type="button" title="Exportera kontojämförelsen"><Download size={18} aria-hidden="true" />Excel</button>
           </div>
         </header>
 
