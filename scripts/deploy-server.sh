@@ -19,7 +19,21 @@ else
 fi
 git pull --ff-only origin "$DEPLOY_BRANCH"
 
-chown -R 10001:10001 data
+DATA_PATH="${NOXER_DATA_PATH:-$DEPLOY_PATH/data}"
+if [ ! -d "$DATA_PATH" ]; then
+  mkdir -p "$DATA_PATH"
+fi
+
+# Docker Desktop on macOS uses the host account for bind-mount permissions.
+# Do not chown to the container UID here: server cannot change ownership to
+# arbitrary numeric IDs and the resulting fakeowner mount is not writable.
+DATA_OWNER="$(stat -f '%Su' "$DATA_PATH")"
+if [ "$DATA_OWNER" != "$(id -un)" ]; then
+  echo "Fel ägare på $DATA_PATH: $DATA_OWNER" >&2
+  echo "Kör som administratör: sudo chown -R $(id -un):staff $DATA_PATH && sudo chmod -RN $DATA_PATH && sudo chmod -R u+rwX $DATA_PATH" >&2
+  exit 1
+fi
+
 docker compose up -d --build
 docker compose ps
 docker compose logs --tail=100

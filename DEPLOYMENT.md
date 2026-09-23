@@ -17,7 +17,10 @@ git clone -b main git@github.com:lllKoniglll/noxer.git noxer
 cd noxer
 cp .env.example .env
 mkdir -p data
-chown -R 10001:10001 data
+# På macOS ska bind-mounten ägas av serverkontot, inte container-UID 10001.
+sudo chown -R server:staff data
+sudo chmod -RN data
+sudo chmod -R u+rwX data
 ```
 
 Redigera `.env` och fyll i Ollama-inställningarna om chatten ska använda en
@@ -45,7 +48,8 @@ Ingen port ska öppnas i routern och ingen containerport ska bindas till
 ```bash
 cd /Users/server/server/stacks/noxer
 git pull --ff-only origin main
-chown -R 10001:10001 data
+# Kör inte chown till 10001 på Mac. deploy-server.sh kontrollerar att data
+# ägs av server innan containrarna startas.
 docker compose build
 docker compose up -d
 docker compose ps
