@@ -38,10 +38,14 @@ export default function CategoryEditorPage() {
     return accountActivity.filter((account) => getAccountCategory(account.account, draft).id === category.id);
   }
 
-  function queueSave(nextDraft: AccountCategory[]) {
+  function queueSave(nextDraft: AccountCategory[], includeNameChanges = false) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      const nextCategories = normalizedCategories(nextDraft);
+      const savedNames = new Map(categories.map((category) => [category.id, category.label]));
+      const categoriesToSave = includeNameChanges
+        ? nextDraft
+        : nextDraft.map((category) => ({ ...category, label: savedNames.get(category.id) ?? category.label }));
+      const nextCategories = normalizedCategories(categoriesToSave);
       setSaving(true);
       void saveCategories(nextCategories).then(() => {
         dirtyRef.current = false;
@@ -53,11 +57,11 @@ export default function CategoryEditorPage() {
     }, 450);
   }
 
-  function updateDraft(nextDraft: AccountCategory[], autoSave = true) {
+  function updateDraft(nextDraft: AccountCategory[], autoSave = true, includeNameChanges = false) {
     dirtyRef.current = true;
     setDraft(nextDraft);
     setMessage(null);
-    if (autoSave) queueSave(nextDraft);
+    if (autoSave) queueSave(nextDraft, includeNameChanges);
   }
 
   function updateCategory(id: string, update: (category: AccountCategory) => AccountCategory, autoSave = false) {
@@ -78,7 +82,7 @@ export default function CategoryEditorPage() {
     let id = baseId;
     let suffix = 2;
     while (draft.some((category) => category.id === id)) id = `${baseId}-${suffix++}`;
-    updateDraft([...draft, { id, label, accounts: [] }]);
+    updateDraft([...draft, { id, label, accounts: [] }], true, true);
     setExpanded(id);
     setNewCategoryName("");
   }
@@ -172,11 +176,10 @@ export default function CategoryEditorPage() {
                 </button>
                 {isExpanded ? <div className={styles.categoryEditorBody}>
                   {isEditable ? <>
-                    <label>Namn<input value={category.label} onChange={(event) => updateCategory(category.id, (item) => ({ ...item, label: event.target.value }))} /></label>
+                    <div className={styles.categoryNameRow}><label>Namn<input value={category.label} onChange={(event) => updateCategory(category.id, (item) => ({ ...item, label: event.target.value }))} /></label><button className={styles.secondaryButton} disabled={saving || category.label.trim() === (categories.find((saved) => saved.id === category.id)?.label ?? "").trim()} onClick={saveCategory} type="button">{saving ? "Sparar..." : "Spara namn"}</button></div>
                     <div className={styles.categoryAccountRules}><strong>Konton och prefix</strong>{category.accounts.length ? category.accounts.map((account) => { const names = accountActivity.filter((item) => item.account === account || item.account.startsWith(account)).map((item) => item.name).filter(Boolean).filter((name, index, values) => values.indexOf(name) === index); return <span key={account}><strong>{account}</strong>{names.length ? <small>{names.join(", ")}</small> : null}<button aria-label={`Ta bort ${account} från ${category.label}`} onClick={() => updateCategory(category.id, (item) => ({ ...item, accounts: item.accounts.filter((value) => value !== account) }), true)} type="button"><Trash2 size={15} aria-hidden="true" /></button></span>; }) : <small>Inga konton tillagda ännu.</small>}</div>
                     <label>Sök konto för att lägga till<input placeholder="Sök på kontonummer eller namn..." value={accountSearch} onChange={(event) => setAccountSearch(event.target.value)} /></label>
                     {accountSearch.trim() ? <div className={styles.accountSearchResults}>{matchingAccounts.length ? matchingAccounts.map((account) => <button key={account.account} onClick={() => addNamedAccount(category.id, account.account)} type="button"><strong>{account.account}</strong><span>{account.name}</span></button>) : <small>Inga konton matchar sökningen.</small>}</div> : null}
-                    <button className={styles.secondaryButton} disabled={saving} onClick={saveCategory} type="button">{saving ? "Sparar..." : "Spara kategori"}</button>
                     <button className={styles.dangerButton} onClick={() => removeCategory(category.id)} type="button"><Trash2 size={16} aria-hidden="true" />Ta bort kategori</button>
                   </> : <>
                     <p className={styles.copy}>Övrigt fylls automatiskt med konton som inte matchar någon annan kategori.</p>
