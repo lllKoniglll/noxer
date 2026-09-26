@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { ACCOUNT_CATEGORIES, type AccountCategory } from "@/lib/reports/categories";
 
 type StoredFile = { name: string; size: number };
 type UploadContextValue = {
@@ -11,6 +12,8 @@ type UploadContextValue = {
   isLoading: boolean;
   storageError: string | null;
   group: string | null;
+  categories: AccountCategory[];
+  saveCategories: (categories: AccountCategory[]) => Promise<void>;
 };
 
 const UploadContext = createContext<UploadContextValue | null>(null);
@@ -25,6 +28,13 @@ async function loadServerFiles(): Promise<{ files: File[]; group: string }> {
     return new File([await fileResponse.arrayBuffer()], entry.name, { type: "application/octet-stream" });
   }));
   return { files, group: listing.group };
+}
+
+async function loadCategories(): Promise<AccountCategory[]> {
+  const response = await fetch("/api/categories", { cache: "no-store" });
+  if (!response.ok) throw new Error("Kunde inte läsa kategorierna");
+  const payload = (await response.json()) as { categories?: AccountCategory[] };
+  return payload.categories ?? ACCOUNT_CATEGORIES;
 }
 
 async function responseError(response: Response, fallback: string): Promise<Error> {
@@ -46,19 +56,34 @@ export function UploadProvider({ children }: { children: ReactNode }) {
   const [group, setGroup] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<AccountCategory[]>(ACCOUNT_CATEGORIES);
 
   const refresh = async () => {
     setIsLoading(true);
     try {
-      const result = await loadServerFiles();
+      const [result, loadedCategories] = await Promise.all([loadServerFiles(), loadCategories()]);
       setFilesState(result.files);
       setGroup(result.group);
+      setCategories(loadedCategories);
       setStorageError(null);
     } catch (error) {
       setStorageError(error instanceof Error ? error.message : "Gruppens filer kunde inte läsas");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const saveCategories = async (nextCategories: AccountCategory[]) => {
+    const response = await fetch("/api/categories", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ categories: nextCategories })
+    });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { detail?: string } | null;
+      throw new Error(payload?.detail ?? "Kategorierna kunde inte sparas");
+    }
+    setCategories(nextCategories);
   };
 
   useEffect(() => { void refresh(); }, []);
@@ -105,7 +130,7 @@ export function UploadProvider({ children }: { children: ReactNode }) {
     })();
   };
 
-  const value = { files, setFiles: replaceFiles, removeFile, clearFiles: removeFiles, isLoading, storageError, group };
+  const value = { files, setFiles: replaceFiles, removeFile, clearFiles: removeFiles, isLoading, storageError, group, categories, saveCategories };
   return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;
 }
 

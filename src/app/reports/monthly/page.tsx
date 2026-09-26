@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { ComparisonToggle } from "@/app/report-controls";
 import { SortableTable } from "@/app/sortable-table";
@@ -100,6 +100,7 @@ function MonthlyReportPageContent() {
             Chat
           </Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
           <LogoutLink />
         </nav>
       </aside>

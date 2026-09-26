@@ -64,10 +64,11 @@ export const ACCOUNT_CATEGORIES: AccountCategory[] = [
   }
 ];
 
-export function getAccountCategory(account: string): AccountCategory {
+export function getAccountCategory(account: string, categories: AccountCategory[] = ACCOUNT_CATEGORIES): AccountCategory {
   return (
-    ACCOUNT_CATEGORIES.find((category) =>
+    categories.find((category) => category.accounts.includes(account)) ??
+    categories.find((category) =>
       category.accounts.some((prefix) => account.startsWith(prefix))
-    ) ?? ACCOUNT_CATEGORIES[ACCOUNT_CATEGORIES.length - 1]
+    ) ?? categories.find((category) => category.id === "other") ?? categories[categories.length - 1]
   );
 }

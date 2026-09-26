@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
 import { parseBudgetBuffer } from "@/lib/budget/parser";
@@ -17,7 +17,7 @@ function resultClass(value: number): string | undefined {
 }
 
 export default function OverviewPage() {
-  const { files } = useUploads();
+  const { files, categories } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [budget, setBudget] = useState<BudgetDataset | undefined>();
 
@@ -39,9 +39,9 @@ export default function OverviewPage() {
 
   const year = budget?.year ?? (Number(dataset.latestVoucherDate?.slice(0, 4)) || new Date().getFullYear());
   const projectedResult = buildProjectedResult(dataset, year, "latestDate");
-  const categories = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget).filter((category) => category.id !== "other").slice(0, 6) : [], [dataset, budget]);
-  const budgetTotals = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget).reduce((sum, category) => ({ budget: sum.budget + category.budget, actual: sum.actual + category.actual, variance: sum.variance + category.variance }), { budget: 0, actual: 0, variance: 0 }) : undefined, [dataset, budget]);
-  const maxVariance = Math.max(...categories.map((category) => Math.abs(category.variance)), Math.abs(budgetTotals?.variance ?? 0), 1);
+  const categorySummaries = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget, categories).filter((category) => category.id !== "other").slice(0, 6) : [], [dataset, budget, categories]);
+  const budgetTotals = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget, categories).reduce((sum, category) => ({ budget: sum.budget + category.budget, actual: sum.actual + category.actual, variance: sum.variance + category.variance }), { budget: 0, actual: 0, variance: 0 }) : undefined, [dataset, budget, categories]);
+  const maxVariance = Math.max(...categorySummaries.map((category) => Math.abs(category.variance)), Math.abs(budgetTotals?.variance ?? 0), 1);
   const latestDate = dataset.latestVoucherDate;
   const cashForecast = buildCashForecast(dataset, year, "latestDate");
   const currentCash = [...cashForecast].reverse().find((point) => point.actual !== null)?.actual ?? 0;
@@ -59,6 +59,7 @@ export default function OverviewPage() {
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
           <LogoutLink />
         </nav>
       </aside>
@@ -87,7 +88,7 @@ export default function OverviewPage() {
               {!budget ? <p className={`${styles.copy} ${styles.dashboardLead}`}>Ladda upp resultatrapporten i `.xls`-format för att se kategoriavvikelser här.</p> : <>
                 <p className={`${styles.copy} ${styles.dashboardLead}`}>Grönt betyder bättre resultat än budget. Kostnader är negativa, så en mindre kostnad ger en positiv avvikelse.</p>
                 <div className={styles.budgetVarianceChart} aria-label="Avvikelse mot budget per kategori">
-                  {categories.map((category) => <div className={styles.budgetVarianceRow} data-tooltip={`${category.label}: ${formatThousands(category.variance)}`} title={`${category.label}: ${formatThousands(category.variance)}`} key={category.id}><strong>{category.label}</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={category.variance >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(category.variance) / maxVariance * 50, 1)}%` }} /></div><span className={category.variance >= 0 ? styles.betterText : styles.worseText}>{formatThousands(category.variance)}</span></div>)}
+                  {categorySummaries.map((category) => <div className={styles.budgetVarianceRow} data-tooltip={`${category.label}: ${formatThousands(category.variance)}`} title={`${category.label}: ${formatThousands(category.variance)}`} key={category.id}><strong>{category.label}</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={category.variance >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(category.variance) / maxVariance * 50, 1)}%` }} /></div><span className={category.variance >= 0 ? styles.betterText : styles.worseText}>{formatThousands(category.variance)}</span></div>)}
                   <div className={`${styles.budgetVarianceRow} ${styles.categoryChangeTotalRow}`}><strong>Resultat</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={(budgetTotals?.variance ?? 0) >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(budgetTotals?.variance ?? 0) / maxVariance * 50, 1)}%` }} /></div><span className={(budgetTotals?.variance ?? 0) >= 0 ? styles.betterText : styles.worseText}>{formatThousands(budgetTotals?.variance ?? 0)}</span></div>
                 </div>
               </>}

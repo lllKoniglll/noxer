@@ -1,7 +1,7 @@
 import json
 from typing import List
 
-from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi import Body, FastAPI, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,7 +17,7 @@ from app.agent.tools import (
     set_request_sie_dir,
 )
 from app.schemas import ChatRequest, ChatResponse
-from app.workspaces import file_for_download, identity_from_request, safe_filename, workspace_files, write_file
+from app.workspaces import file_for_download, identity_from_request, read_categories, safe_filename, workspace_files, write_categories, write_file
 
 
 app = FastAPI(title="Noxer Economy Agent", version="0.1.0")
@@ -88,3 +88,15 @@ def delete_file(filename: str, request: Request):
     path = file_for_download(identity, filename)
     path.unlink()
     return {"deleted": path.name}
+
+
+@app.get("/categories")
+def list_categories(request: Request):
+    identity = identity_from_request(request)
+    return {"categories": read_categories(identity)}
+
+
+@app.put("/categories")
+def save_categories(request: Request, payload: dict = Body(...)):
+    identity = identity_from_request(request)
+    return {"categories": write_categories(identity, payload)}

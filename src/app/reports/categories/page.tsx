@@ -2,7 +2,7 @@
 
 import { Fragment, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { ComparisonToggle } from "@/app/report-controls";
 import {
@@ -41,7 +41,7 @@ function amountClass(value: number): string | undefined {
 
 function CategoriesReportPageContent() {
   const params = useSearchParams();
-  const { files } = useUploads();
+  const { files, categories: categoryConfig } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   useEffect(() => { loadAccountingDataset(files).then(setDataset); }, [files]);
@@ -49,7 +49,7 @@ function CategoriesReportPageContent() {
   const comparisonQuery = `?comparison=${comparisonMode}`;
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? 2026;
-  const categories = buildCategorySummary(dataset, selectedYear, comparisonMode);
+  const categories = buildCategorySummary(dataset, selectedYear, comparisonMode, categoryConfig);
   const cutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
   const comparisonLabel = comparisonModeLabel(comparisonMode);
   const totalCurrent = categories.reduce((sum, category) => sum + category.amount, 0);
@@ -99,6 +99,7 @@ function CategoriesReportPageContent() {
             Chat
           </Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
           <LogoutLink />
         </nav>
       </aside>
@@ -164,7 +165,7 @@ function CategoriesReportPageContent() {
                     const isIncome = INCOME_CATEGORY_IDS.has(category.id);
                     const result = comparisonResult(category.amount, category.previousAmount);
                     const isExpanded = expandedCategory === category.id;
-                    const accounts = isExpanded ? buildCategoryAccountSummary(dataset, selectedYear, comparisonMode, category.id) : [];
+                    const accounts = isExpanded ? buildCategoryAccountSummary(dataset, selectedYear, comparisonMode, category.id, categoryConfig) : [];
                     return (
                       <Fragment key={category.id}>
                         <tr>

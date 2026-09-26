@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart3, Bot, CalendarRange, FileSpreadsheet, FileUp, Landmark, LineChart, Trash2, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileSpreadsheet, FileUp, Landmark, LineChart, Settings2, Trash2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
@@ -46,6 +46,7 @@ function FileManagementPage() {
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link className={styles.active} href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
           <LogoutLink />
         </nav>
       </aside>

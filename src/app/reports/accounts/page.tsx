@@ -1,10 +1,10 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { SortableTable } from "@/app/sortable-table";
-import { getAccountCategory, ACCOUNT_CATEGORIES } from "@/lib/reports/categories";
+import { getAccountCategory } from "@/lib/reports/categories";
 import {
   buildAccountCategoryComparison,
   buildAccountComparison,
@@ -21,7 +21,7 @@ import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
 
 function AccountComparisonPageContent() {
-  const { files } = useUploads();
+  const { files, categories } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [accountFilter, setAccountFilter] = useState("");
@@ -35,9 +35,9 @@ function AccountComparisonPageContent() {
   }, [files]);
 
   const accountOptions = getAccountActivity(dataset);
-  const categoryOptions = ACCOUNT_CATEGORIES.map((category) => ({
+  const categoryOptions = categories.map((category) => ({
     ...category,
-    accounts: accountOptions.filter((item) => getAccountCategory(item.account).id === category.id)
+    accounts: accountOptions.filter((item) => getAccountCategory(item.account, categories).id === category.id)
   })).filter((category) => category.accounts.length > 0);
   const normalizedAccountFilter = accountFilter.trim().toLowerCase();
   const visibleAccountOptions = normalizedAccountFilter
@@ -45,7 +45,7 @@ function AccountComparisonPageContent() {
     : accountOptions;
   const years = getAvailableYears(dataset);
   const monthlyComparison = buildAccountComparison(dataset, selectedAccounts);
-  const categoryComparison = buildAccountCategoryComparison(dataset, selectedAccounts);
+  const categoryComparison = buildAccountCategoryComparison(dataset, selectedAccounts, categories);
   const transactionRows = buildAccountTransactions(dataset, selectedAccounts);
   const maxBar = Math.max(...monthlyComparison.flatMap((row) => Object.values(row.years).map((value) => Math.abs(value))), 1);
   const selectedAccountLabel = selectedAccounts.length === 1 ? selectedAccounts[0] : `${selectedAccounts.length} konton`;
@@ -84,6 +84,7 @@ function AccountComparisonPageContent() {
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
           <LogoutLink />
         </nav>
       </aside>

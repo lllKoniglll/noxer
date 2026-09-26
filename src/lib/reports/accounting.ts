@@ -9,7 +9,7 @@ import type {
   Voucher,
   BudgetDataset
 } from "@/lib/sie/types";
-import { ACCOUNT_CATEGORIES, getAccountCategory } from "./categories";
+import { ACCOUNT_CATEGORIES, getAccountCategory, type AccountCategory } from "./categories";
 
 const CASH_ACCOUNTS = new Set(["1910", "1920", "1930", "1939", "1940", "1950", "1960"]);
 const MONTH_LABELS = [
@@ -235,21 +235,21 @@ export function buildBudgetAccountSummary(dataset: AccountingDataset, budget: Bu
     .sort((left, right) => Math.abs(right.budget) - Math.abs(left.budget) || left.account.localeCompare(right.account, "sv", { numeric: true }));
 }
 
-export function buildBudgetCategorySummary(dataset: AccountingDataset, budget: BudgetDataset): BudgetCategorySummary[] {
+export function buildBudgetCategorySummary(dataset: AccountingDataset, budget: BudgetDataset, categories: AccountCategory[] = ACCOUNT_CATEGORIES): BudgetCategorySummary[] {
   const accounts = buildBudgetAccountSummary(dataset, budget);
-  const categories = new Map<string, BudgetCategorySummary>();
-  for (const category of ACCOUNT_CATEGORIES) {
-    categories.set(category.id, { id: category.id, label: category.label, budget: 0, actual: 0, variance: 0 });
+  const categoryRows = new Map<string, BudgetCategorySummary>();
+  for (const category of categories) {
+    categoryRows.set(category.id, { id: category.id, label: category.label, budget: 0, actual: 0, variance: 0 });
   }
   for (const account of accounts) {
-    const category = getAccountCategory(account.account);
-    const row = categories.get(category.id);
+    const category = getAccountCategory(account.account, categories);
+    const row = categoryRows.get(category.id);
     if (!row) continue;
     row.budget += account.budget;
     row.actual += account.actual;
     row.variance += account.variance;
   }
-  return Array.from(categories.values())
+  return Array.from(categoryRows.values())
     .map((row) => ({ ...row, budget: roundSek(row.budget), actual: roundSek(row.actual), variance: roundSek(row.variance) }))
     .filter((row) => row.budget !== 0 || row.actual !== 0)
     .sort((left, right) => Math.abs(right.actual) - Math.abs(left.actual));
@@ -324,13 +324,14 @@ export function buildAccountComparison(
 
 export function buildAccountCategoryComparison(
   dataset: AccountingDataset,
-  selectedAccounts: string[]
+  selectedAccounts: string[],
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES
 ): AccountComparisonCategory[] {
   const selected = new Set(selectedAccounts);
   const years = getAvailableYears(dataset);
   const totals = new Map<string, Record<string, number>>();
 
-  for (const category of ACCOUNT_CATEGORIES) {
+  for (const category of categories) {
     totals.set(category.id, Object.fromEntries(years.map((year) => [String(year), 0])));
   }
 
@@ -338,13 +339,13 @@ export function buildAccountCategoryComparison(
     const year = String(yearFromDate(voucher.date));
     for (const transaction of voucher.transactions) {
       if (!accountMatches(transaction.account, selected)) continue;
-      const category = getAccountCategory(transaction.account);
+      const category = getAccountCategory(transaction.account, categories);
       const row = totals.get(category.id);
       if (row) row[year] += comparisonAmount(transaction);
     }
   }
 
-  return ACCOUNT_CATEGORIES
+  return categories
     .map((category) => ({
       id: category.id,
       label: category.label,
@@ -448,12 +449,13 @@ export function buildMonthlyReport(
 export function buildCategorySummary(
   dataset: AccountingDataset,
   selectedYear: number,
-  comparisonMode: ComparisonMode = "fullYear"
+  comparisonMode: ComparisonMode = "fullYear",
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES
 ): CategorySummary[] {
   const summary = new Map<string, CategorySummary>();
   const previousCutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
 
-  for (const category of ACCOUNT_CATEGORIES) {
+  for (const category of categories) {
     summary.set(category.id, {
       id: category.id,
       label: category.label,
@@ -470,7 +472,7 @@ export function buildCategorySummary(
     for (const transaction of voucher.transactions) {
       if (!classifyResultTransaction(transaction)) continue;
 
-      const category = getAccountCategory(transaction.account);
+      const category = getAccountCategory(transaction.account, categories);
       const row = summary.get(category.id);
       if (!row) continue;
 
@@ -493,7 +495,8 @@ export function buildCategoryAccountSummary(
   dataset: AccountingDataset,
   selectedYear: number,
   comparisonMode: ComparisonMode,
-  categoryId: string
+  categoryId: string,
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES
 ): CategoryAccountSummary[] {
   const summary = new Map<string, CategoryAccountSummary>();
   const previousCutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
@@ -505,7 +508,7 @@ export function buildCategoryAccountSummary(
 
     for (const transaction of voucher.transactions) {
       if (!classifyResultTransaction(transaction)) continue;
-      if (getAccountCategory(transaction.account).id !== categoryId) continue;
+      if (getAccountCategory(transaction.account, categories).id !== categoryId) continue;
 
       const row = summary.get(transaction.account) ?? {
         account: transaction.account,

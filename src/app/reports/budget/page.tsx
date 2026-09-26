@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
@@ -18,7 +18,7 @@ function amountClass(value: number): string | undefined {
 }
 
 function BudgetPage() {
-  const { files } = useUploads();
+  const { files, categories } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [budgets, setBudgets] = useState<BudgetDataset[]>([]);
   const [selectedFile, setSelectedFile] = useState("");
@@ -39,12 +39,12 @@ function BudgetPage() {
   }, [files]);
 
   const budget = budgets.find((entry) => entry.fileName === selectedFile) ?? budgets.at(-1);
-  const categories = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget) : [], [dataset, budget]);
+  const categorySummaries = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget, categories) : [], [dataset, budget, categories]);
   const accounts = useMemo(() => budget ? buildBudgetAccountSummary(dataset, budget) : [], [dataset, budget]);
-  const categorizedCategories = categories.filter((category) => category.id !== "other");
-  const uncategorizedAccounts = accounts.filter((account) => getAccountCategory(account.account).id === "other");
+  const categorizedCategories = categorySummaries.filter((category) => category.id !== "other");
+  const uncategorizedAccounts = accounts.filter((account) => getAccountCategory(account.account, categories).id === "other");
   const totals = useMemo(() => accounts.reduce((sum, row) => ({ budget: sum.budget + row.budget, actual: sum.actual + row.actual, variance: sum.variance + row.variance }), { budget: 0, actual: 0, variance: 0 }), [accounts]);
-  const maxVariance = Math.max(...categories.map((category) => Math.abs(category.variance)), Math.abs(totals.variance), 1);
+  const maxVariance = Math.max(...categorySummaries.map((category) => Math.abs(category.variance)), Math.abs(totals.variance), 1);
 
   return (
     <main className={styles.shell}>
@@ -59,6 +59,7 @@ function BudgetPage() {
           <Link className={styles.active} href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
           <LogoutLink />
         </nav>
       </aside>
@@ -88,7 +89,7 @@ function BudgetPage() {
 
               <div className={`${styles.chatTable} ${styles.wideTable}`}>
                 <div className={styles.tableHeader}><h3>Kategorier</h3><span className={styles.tableHint}>Utfall bygger på inlästa SIE4-verifikationer</span></div>
-                <div className={styles.tableScroll}><table><thead><tr><th>Kategori</th><th>Budget</th><th>Utfall</th><th>Avvikelse</th></tr></thead><tbody>{categorizedCategories.map((category) => { const isExpanded = expandedCategory === category.id; const categoryAccounts = accounts.filter((account) => getAccountCategory(account.account).id === category.id); return <Fragment key={category.id}><tr><td><button aria-expanded={isExpanded} className={styles.categoryToggle} onClick={() => setExpandedCategory(isExpanded ? null : category.id)} type="button"><ChevronRight className={isExpanded ? styles.categoryChevronOpen : undefined} size={17} aria-hidden="true" /><span><strong>{category.label}</strong><small>{categoryAccounts.length} konton</small></span></button></td><td className={amountClass(category.budget)}>{formatThousands(category.budget)}</td><td className={amountClass(category.actual)}>{formatThousands(category.actual)}</td><td className={amountClass(category.variance)}>{formatThousands(category.variance)}</td></tr>{isExpanded ? <tr><td colSpan={4}><div className={styles.categoryDetails}><strong>Konton i {category.label}</strong><table className={styles.categoryDetailsTable}><thead><tr><th>Konto</th><th>Budget</th><th>Utfall</th><th>Avvikelse</th></tr></thead><tbody>{categoryAccounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.budget)}>{formatThousands(account.budget)}</td><td className={amountClass(account.actual)}>{formatThousands(account.actual)}</td><td className={amountClass(account.variance)}>{formatThousands(account.variance)}</td></tr>)}</tbody></table></div></td></tr> : null}</Fragment>; })}</tbody><tfoot><tr><td>Resultat</td><td className={amountClass(totals.budget)}>{formatThousands(totals.budget)}</td><td className={amountClass(totals.actual)}>{formatThousands(totals.actual)}</td><td className={amountClass(totals.variance)}>{formatThousands(totals.variance)}</td></tr></tfoot></table></div>
+                <div className={styles.tableScroll}><table><thead><tr><th>Kategori</th><th>Budget</th><th>Utfall</th><th>Avvikelse</th></tr></thead><tbody>{categorizedCategories.map((category) => { const isExpanded = expandedCategory === category.id; const categoryAccounts = accounts.filter((account) => getAccountCategory(account.account, categories).id === category.id); return <Fragment key={category.id}><tr><td><button aria-expanded={isExpanded} className={styles.categoryToggle} onClick={() => setExpandedCategory(isExpanded ? null : category.id)} type="button"><ChevronRight className={isExpanded ? styles.categoryChevronOpen : undefined} size={17} aria-hidden="true" /><span><strong>{category.label}</strong><small>{categoryAccounts.length} konton</small></span></button></td><td className={amountClass(category.budget)}>{formatThousands(category.budget)}</td><td className={amountClass(category.actual)}>{formatThousands(category.actual)}</td><td className={amountClass(category.variance)}>{formatThousands(category.variance)}</td></tr>{isExpanded ? <tr><td colSpan={4}><div className={styles.categoryDetails}><strong>Konton i {category.label}</strong><table className={styles.categoryDetailsTable}><thead><tr><th>Konto</th><th>Budget</th><th>Utfall</th><th>Avvikelse</th></tr></thead><tbody>{categoryAccounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.budget)}>{formatThousands(account.budget)}</td><td className={amountClass(account.actual)}>{formatThousands(account.actual)}</td><td className={amountClass(account.variance)}>{formatThousands(account.variance)}</td></tr>)}</tbody></table></div></td></tr> : null}</Fragment>; })}</tbody><tfoot><tr><td>Resultat</td><td className={amountClass(totals.budget)}>{formatThousands(totals.budget)}</td><td className={amountClass(totals.actual)}>{formatThousands(totals.actual)}</td><td className={amountClass(totals.variance)}>{formatThousands(totals.variance)}</td></tr></tfoot></table></div>
               </div>
 
               <div className={`${styles.chatTable} ${styles.wideTable}`}><div className={styles.tableHeader}><h3>Konton utan kategori</h3><span className={styles.tableHint}>{uncategorizedAccounts.length} budgeterade konton</span></div><div className={styles.tableScroll}><table><thead><tr><th>Konto</th><th>Budget</th><th>Utfall</th><th>Avvikelse</th></tr></thead><tbody>{uncategorizedAccounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.budget)}>{formatThousands(account.budget)}</td><td className={amountClass(account.actual)}>{formatThousands(account.actual)}</td><td className={amountClass(account.variance)}>{formatThousands(account.variance)}</td></tr>)}</tbody></table></div></div>
