@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import Link from "next/link";
 import { SortableTable } from "@/app/sortable-table";
 import { getAccountCategory, ACCOUNT_CATEGORIES } from "@/lib/reports/categories";
 import {
@@ -15,6 +16,7 @@ import {
   loadAccountingDataset
 } from "@/lib/reports/accounting";
 import { useUploads } from "@/app/upload-context";
+import { LogoutLink } from "@/app/logout-link";
 import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
 
@@ -74,14 +76,15 @@ function AccountComparisonPageContent() {
           <div><strong>Kronängs IF</strong><span>Styrelserapport</span></div>
         </div>
         <nav className={styles.nav}>
-          <a href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
-          <a href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</a>
-          <a href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</a>
-          <a href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</a>
-          <a className={styles.active} href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</a>
-          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
-          <a href="/chat"><Bot size={18} aria-hidden="true" />Chat</a>
-          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
+          <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
+          <Link href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</Link>
+          <Link href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</Link>
+          <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
+          <Link className={styles.active} href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</Link>
+          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
+          <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <LogoutLink />
         </nav>
       </aside>
 

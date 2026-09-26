@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
 import { useUploads } from "@/app/upload-context";
+import { LogoutLink } from "@/app/logout-link";
 import { parseBudgetBuffer } from "@/lib/budget/parser";
 import { buildBudgetCategorySummary, buildCashForecast, buildProjectedResult, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
 import type { AccountingDataset, BudgetDataset } from "@/lib/sie/types";
@@ -49,14 +51,15 @@ export default function OverviewPage() {
       <aside className={styles.sidebar} aria-label="Rapporter">
         <div className={styles.brand}><Landmark size={26} aria-hidden="true" /><div><strong>Kronängs IF</strong><span>Styrelserapport</span></div></div>
         <nav className={styles.nav}>
-          <a className={styles.active} href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
-          <a href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</a>
-          <a href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</a>
-          <a href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</a>
-          <a href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</a>
-          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
-          <a href="/chat"><Bot size={18} aria-hidden="true" />Chat</a>
-          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
+          <Link className={styles.active} href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
+          <Link href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</Link>
+          <Link href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</Link>
+          <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
+          <Link href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</Link>
+          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
+          <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <LogoutLink />
         </nav>
       </aside>
 
@@ -68,8 +71,8 @@ export default function OverviewPage() {
         {!files.length ? <div className={styles.emptyState}><BarChart3 size={32} aria-hidden="true" /><h2>Översikten fylls när du laddar upp underlag</h2><p>Ladda upp SIE4-filer och gärna resultatrapporten med budget på sidan Filer.</p></div> : (
           <>
             <section className={styles.dashboardHero} aria-label="Viktigaste ekonomiska nyckeltalen">
-              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Prognostiserat saldo 31 december minus saldo 1 januari</small><a href="/reports/liquidity">Visa likviditetsprognos</a></article>
-              <article className={styles.dashboardBudgetCard}><span>Utfall mot budget</span><strong className={resultClass(budgetTotals?.variance ?? 0)}>{budgetTotals ? formatThousands(budgetTotals.variance) : "saknas"}</strong><small>{budgetTotals ? `Utfall ${formatThousands(budgetTotals.actual)} mot budget ${formatThousands(budgetTotals.budget)}` : "Ladda upp en .xls-budget på sidan Filer"}</small><a href="/reports/budget">Visa budgetuppföljning</a></article>
+              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Prognostiserat saldo 31 december minus saldo 1 januari</small><Link href="/reports/liquidity">Visa likviditetsprognos</Link></article>
+              <article className={styles.dashboardBudgetCard}><span>Utfall mot budget</span><strong className={resultClass(budgetTotals?.variance ?? 0)}>{budgetTotals ? formatThousands(budgetTotals.variance) : "saknas"}</strong><small>{budgetTotals ? `Utfall ${formatThousands(budgetTotals.actual)} mot budget ${formatThousands(budgetTotals.budget)}` : "Ladda upp en .xls-budget på sidan Filer"}</small><Link href="/reports/budget">Visa budgetuppföljning</Link></article>
             </section>
 
             <section className={styles.kpis} aria-label="Övriga nyckeltal">
@@ -80,7 +83,7 @@ export default function OverviewPage() {
             </section>
 
             <article className={`${styles.panel} ${styles.dashboardBudgetPanel}`}>
-              <div className={`${styles.panelHeader} ${styles.dashboardPanelHeader}`}><div><span>Budgetuppföljning</span><h2>Vad avviker mest mot budget?</h2></div><a className={styles.panelLink} href="/reports/budget">Öppna hela rapporten</a></div>
+              <div className={`${styles.panelHeader} ${styles.dashboardPanelHeader}`}><div><span>Budgetuppföljning</span><h2>Vad avviker mest mot budget?</h2></div><Link className={styles.panelLink} href="/reports/budget">Öppna hela rapporten</Link></div>
               {!budget ? <p className={`${styles.copy} ${styles.dashboardLead}`}>Ladda upp resultatrapporten i `.xls`-format för att se kategoriavvikelser här.</p> : <>
                 <p className={`${styles.copy} ${styles.dashboardLead}`}>Grönt betyder bättre resultat än budget. Kostnader är negativa, så en mindre kostnad ger en positiv avvikelse.</p>
                 <div className={styles.budgetVarianceChart} aria-label="Avvikelse mot budget per kategori">

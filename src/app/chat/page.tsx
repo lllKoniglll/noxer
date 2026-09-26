@@ -1,5 +1,7 @@
 import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import Link from "next/link";
 import { ChatClient } from "./chat-client";
+import { LogoutLink } from "@/app/logout-link";
 import styles from "../page.module.css";
 
 export default function ChatPage() {
@@ -14,25 +16,26 @@ export default function ChatPage() {
           </div>
         </div>
         <nav className={styles.nav}>
-          <a href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
-          <a href="/reports/monthly">
+          <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
+          <Link href="/reports/monthly">
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
-          </a>
-          <a href="/reports/liquidity">
+          </Link>
+          <Link href="/reports/liquidity">
             <LineChart size={18} aria-hidden="true" />
             Likviditet
-          </a>
-          <a href="/reports/categories">
+          </Link>
+          <Link href="/reports/categories">
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
-          </a>
-          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
-          <a className={styles.active} href="/chat">
+          </Link>
+          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link className={styles.active} href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat
-          </a>
-          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
+          </Link>
+          <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <LogoutLink />
         </nav>
       </aside>
 

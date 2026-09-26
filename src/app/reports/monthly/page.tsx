@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, WalletCards } from "lucide-react";
+import Link from "next/link";
 import { ComparisonToggle } from "@/app/report-controls";
 import { SortableTable } from "@/app/sortable-table";
 import {
@@ -17,6 +18,7 @@ import {
   parseComparisonMode
 } from "@/lib/reports/accounting";
 import { useUploads } from "@/app/upload-context";
+import { LogoutLink } from "@/app/logout-link";
 import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
 
@@ -75,29 +77,30 @@ function MonthlyReportPageContent() {
         </div>
 
         <nav className={styles.nav}>
-          <a href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</a>
-          <a className={styles.active} href="/reports/monthly">
+          <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
+          <Link className={styles.active} href="/reports/monthly">
             <BarChart3 size={18} aria-hidden="true" />
             Månadsöversikt
-          </a>
-          <a href={`/reports/liquidity${comparisonQuery}`}>
+          </Link>
+          <Link href={`/reports/liquidity${comparisonQuery}`}>
             <LineChart size={18} aria-hidden="true" />
             Likviditet
-          </a>
-          <a href={`/reports/categories${comparisonQuery}`}>
+          </Link>
+          <Link href={`/reports/categories${comparisonQuery}`}>
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
-          </a>
-          <a href="/reports/accounts">
+          </Link>
+          <Link href="/reports/accounts">
             <BarChart3 size={18} aria-hidden="true" />
             Kontojämförelse
-          </a>
-          <a href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</a>
-          <a href="/chat">
+          </Link>
+          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat
-          </a>
-          <a href="/files"><FileUp size={18} aria-hidden="true" />Filer</a>
+          </Link>
+          <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
+          <LogoutLink />
         </nav>
       </aside>
 
