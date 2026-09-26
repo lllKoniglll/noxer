@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
@@ -21,8 +21,6 @@ import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
 import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
-
-const INCOME_CATEGORY_IDS = new Set(["fees", "grants", "sales"]);
 
 function comparisonResult(current: number, previous: number) {
   const change = current - previous;
@@ -130,79 +128,31 @@ function CategoriesReportPageContent() {
           <div className={styles.categoryChangeChart} aria-label="Horisontellt stapeldiagram över förändring per kategori">
             {categories.map((category) => {
               const change = category.amount - category.previousAmount;
+              const isExpanded = expandedCategory === category.id;
+              const accounts = isExpanded ? buildCategoryAccountSummary(dataset, selectedYear, comparisonMode, category.id, categoryConfig) : [];
               return (
-                <div className={styles.categoryChangeRow} data-tooltip={`${category.label}: ${formatThousands(change)}`} key={category.id} title={`${category.label}: ${formatThousands(change)}`}>
-                  <strong>{category.label}</strong>
-                  <div className={styles.categoryChangeTrack}>
-                    <span className={styles.categoryChangeBaseline} />
-                    {change !== 0 ? <span className={change > 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max((Math.abs(change) / maxCategoryChange) * 50, 1)}%` }} /> : null}
-                  </div>
-                  <span className={change > 0 ? styles.betterText : change < 0 ? styles.worseText : styles.neutralText}>{formatThousands(change)}</span>
+                <div className={styles.categoryChangeItem} key={category.id}>
+                  <button className={styles.categoryChangeRow} data-tooltip={`${category.label}: ${formatThousands(change)}`} onClick={() => setExpandedCategory(isExpanded ? null : category.id)} title={`${category.label}: ${formatThousands(change)}`} type="button" aria-expanded={isExpanded}>
+                    <strong className={styles.categoryChangeLabel}><span>{category.label}</span><ChevronRight size={16} aria-hidden="true" /></strong>
+                    <span className={styles.categoryCurrentValue}>{formatThousands(category.amount)}</span>
+                    <div className={styles.categoryChangeTrack}>
+                      <span className={styles.categoryChangeBaseline} />
+                      {change !== 0 ? <span className={change > 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max((Math.abs(change) / maxCategoryChange) * 50, 1)}%` }} /> : null}
+                    </div>
+                    <span className={change > 0 ? styles.betterText : change < 0 ? styles.worseText : styles.neutralText}>{formatThousands(change)}</span>
+                  </button>
+                  {isExpanded ? <div className={styles.chartCategoryDetails}><strong>Konton i {category.label}</strong><table className={styles.categoryDetailsTable}><thead><tr><th>Konto</th><th>{selectedYear - 1}</th><th>{selectedYear}</th></tr></thead><tbody>{accounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.previousAmount)}>{formatThousands(account.previousAmount)}</td><td className={amountClass(account.amount)}>{formatThousands(account.amount)}</td></tr>)}</tbody><tfoot><tr><td>Total</td><td className={amountClass(category.previousAmount)}>{formatThousands(category.previousAmount)}</td><td className={amountClass(category.amount)}>{formatThousands(category.amount)}</td></tr></tfoot></table></div> : null}
                 </div>
               );
             })}
             <div className={`${styles.categoryChangeRow} ${styles.categoryChangeTotalRow}`} data-tooltip={`Resultat: ${formatThousands(totalCurrent - totalPrevious)}`} title={`Resultat: ${formatThousands(totalCurrent - totalPrevious)}`}>
               <strong>Resultat</strong>
+              <span className={styles.categoryCurrentValue}>{formatThousands(totalCurrent)}</span>
               <div className={styles.categoryChangeTrack}>
                 <span className={styles.categoryChangeBaseline} />
                 {totalCurrent !== totalPrevious ? <span className={totalCurrent > totalPrevious ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max((Math.abs(totalCurrent - totalPrevious) / maxCategoryChange) * 50, 1)}%` }} /> : null}
               </div>
               <span className={totalComparison.className}>{formatThousands(totalCurrent - totalPrevious)}</span>
-            </div>
-          </div>
-          <div className={`${styles.chatTable} ${styles.wideTable}`}>
-            <div className={styles.tableHeader}>
-              <h3>Kategoridata</h3>
-              <span className={styles.tableHint}>Klicka på en kategori för att visa kontona</span>
-            </div>
-            <div className={styles.tableScroll}>
-              <table>
-                <thead>
-                  <tr><th>Kategori</th><th>{selectedYear - 1}</th><th>{selectedYear}</th><th>Förändring</th></tr>
-                </thead>
-                <tbody>
-                  {categories.map((category) => {
-                    const isIncome = INCOME_CATEGORY_IDS.has(category.id);
-                    const result = comparisonResult(category.amount, category.previousAmount);
-                    const isExpanded = expandedCategory === category.id;
-                    const accounts = isExpanded ? buildCategoryAccountSummary(dataset, selectedYear, comparisonMode, category.id, categoryConfig) : [];
-                    return (
-                      <Fragment key={category.id}>
-                        <tr>
-                          <td>
-                            <button
-                              aria-expanded={isExpanded}
-                              className={styles.categoryToggle}
-                              onClick={() => setExpandedCategory(isExpanded ? null : category.id)}
-                              type="button"
-                            >
-                              <ChevronRight className={isExpanded ? styles.categoryChevronOpen : undefined} size={17} aria-hidden="true" />
-                              <span><strong>{category.label}</strong><small>{isIncome ? "Intäkt" : "Kostnad"}</small></span>
-                            </button>
-                          </td>
-                          <td className={amountClass(category.previousAmount)}>{formatThousands(category.previousAmount)}</td>
-                          <td className={amountClass(category.amount)}>{formatThousands(category.amount)}</td>
-                          <td className={result.className}>{result.label}</td>
-                        </tr>
-                        {isExpanded ? (
-                          <tr key={`${category.id}-details`}>
-                            <td colSpan={4}>
-                              <div className={styles.categoryDetails}>
-                                <strong>Konton i {category.label}</strong>
-                                <table className={styles.categoryDetailsTable}>
-                                  <thead><tr><th>Konto</th><th>{selectedYear - 1}</th><th>{selectedYear}</th></tr></thead>
-                                  <tbody>{accounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.previousAmount)}>{formatThousands(account.previousAmount)}</td><td className={amountClass(account.amount)}>{formatThousands(account.amount)}</td></tr>)}</tbody>
-                                </table>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : null}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-                <tfoot><tr><td>Resultat</td><td>{formatThousands(totalPrevious)}</td><td>{formatThousands(totalCurrent)}</td><td className={totalComparison.className}>{totalComparison.label}</td></tr></tfoot>
-              </table>
             </div>
           </div>
         </article>

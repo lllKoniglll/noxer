@@ -1365,16 +1365,67 @@
   margin: 20px 0 24px;
 }
 
+.categoryChangeItem {
+  display: grid;
+  gap: 8px;
+}
+
 .categoryChangeRow {
   align-items: center;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(170px, 0.45fr) minmax(180px, 1fr) 80px;
+  grid-template-columns: minmax(170px, 0.45fr) 80px minmax(180px, 1fr) 80px;
+}
+
+button.categoryChangeRow {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+button.categoryChangeRow:hover .categoryChangeTrack {
+  background: #e5eee8;
+}
+
+.chartCategoryDetails {
+  background: var(--panel-muted);
+  border-radius: 8px;
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+.chartCategoryDetails > strong {
+  font-size: .84rem;
+}
+
+.chartCategoryDetails tfoot td {
+  border-top: 2px solid var(--line);
+  font-weight: 800;
 }
 
 .categoryChangeRow > strong {
   font-size: 0.82rem;
   line-height: 1.2;
+}
+
+.categoryChangeLabel {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+}
+
+.categoryCurrentValue {
+  color: var(--muted);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .categoryChangeTotalRow {
@@ -1422,7 +1473,7 @@
 @media (max-width: 760px) {
   .categoryChangeRow {
     gap: 7px;
-    grid-template-columns: minmax(110px, 0.7fr) minmax(100px, 1fr) 64px;
+    grid-template-columns: minmax(110px, 0.7fr) 64px minmax(100px, 1fr) 64px;
   }
 
   .categoryChangeRow > strong {
