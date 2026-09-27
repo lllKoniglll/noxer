@@ -1,14 +1,16 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Fragment, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
-import { SortableTable } from "@/app/sortable-table";
 import {
   buildCashForecast,
+  buildLiquidityCategorySummary,
+  buildLiquidityCategoryTransactions,
   buildProjectedResult,
   formatThousands,
+  getCashOpeningBalance,
   getAvailableYears,
   loadAccountingDataset,
   emptyAccountingDataset,
@@ -23,9 +25,12 @@ import styles from "../../page.module.css";
 
 function LiquidityReportPageContent() {
   const params = useSearchParams();
-  const { files } = useUploads();
+  const { files, categories } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [forecastMode, setForecastMode] = useState<CashForecastMode>("latestDate");
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
+  const [expandedMonthCategory, setExpandedMonthCategory] = useState<string | null>(null);
+  const [expandedMonthCategoryAccount, setExpandedMonthCategoryAccount] = useState<string | null>(null);
   useEffect(() => { loadAccountingDataset(files).then(setDataset); }, [files]);
   const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
@@ -166,20 +171,10 @@ function LiquidityReportPageContent() {
               );
             })}
           </div>
-          <SortableTable
-            columns={[
-              { key: "month", label: "Månad", format: "text", summable: false },
-              { key: "actual", label: "Faktiskt saldo", format: "thousands", summable: false, tone: "neutral" },
-              { key: "forecast", label: "Prognos", format: "thousands", summable: false, tone: "neutral" }
-            ]}
-            rows={cashForecast.map((point) => ({
-              month: point.label,
-              actual: point.actual,
-              forecast: point.forecast
-            }))}
-            title="Likviditetsdata"
-            wide
-          />
+          <div className={`${styles.chatTable} ${styles.wideTable}`}>
+            <div className={styles.tableHeader}><h3>Likviditetsdata</h3><span className={styles.tableHint}>Klicka på en månad för kategorisummering</span></div>
+            <div className={styles.tableScroll}><table><thead><tr><th>Månad</th><th>Faktiskt saldo</th><th>Prognos</th><th>Förändring</th></tr></thead><tbody>{cashForecast.map((point, index) => { const isExpanded = expandedMonth === point.month; const previousPoint = cashForecast[index - 1]; const displayedBalance = point.actual ?? point.forecast; const previousBalance = previousPoint ? previousPoint.actual ?? previousPoint.forecast : getCashOpeningBalance(dataset); const change = displayedBalance !== null && displayedBalance !== undefined && previousBalance !== null && previousBalance !== undefined ? displayedBalance - previousBalance : null; const monthCategories = isExpanded ? buildLiquidityCategorySummary(dataset, selectedYear, Number(point.month), forecastMode, categories) : []; const sourceLabel = point.actual === null ? `Prognos baserad på ${point.label} ${selectedYear - 1}` : point.forecast !== null ? `Utfall + prognos baserad på ${point.label} ${selectedYear - 1}` : "Utfall"; return <Fragment key={point.month}><tr><td><button className={styles.accountDetailToggle} aria-expanded={isExpanded} onClick={() => setExpandedMonth(isExpanded ? null : point.month)} type="button"><span className={isExpanded ? styles.categoryChevronOpen : undefined}>›</span>{point.label}</button></td><td>{point.actual === null ? "–" : formatThousands(point.actual)}</td><td>{point.forecast === null ? "–" : formatThousands(point.forecast)}</td><td className={change === null ? undefined : change >= 0 ? styles.incomeText : styles.costText}>{change === null ? "–" : formatThousands(change)}</td></tr>{isExpanded ? <tr><td colSpan={4}><div className={styles.transactionDetails}><strong>Kategorier i {point.label} · {sourceLabel}</strong><table className={styles.liquidityCategoryTable}><thead><tr><th>Kategori</th><th>Utfall/prognos</th></tr></thead><tbody>{monthCategories.length ? monthCategories.map((category) => { const categoryKey = `${point.month}:${category.id}`; const categoryIsExpanded = expandedMonthCategory === categoryKey; const transactions = categoryIsExpanded ? buildLiquidityCategoryTransactions(dataset, selectedYear, Number(point.month), category.id, forecastMode, categories) : []; const accountGroups = Array.from(new Map(transactions.map((transaction) => [transaction.account, { account: transaction.account, accountName: transaction.accountName, amount: transactions.filter((item) => item.account === transaction.account).reduce((sum, item) => sum + item.amount, 0) }])).values()); return <Fragment key={category.id}><tr><td><button className={styles.accountDetailToggle} aria-expanded={categoryIsExpanded} onClick={() => setExpandedMonthCategory(categoryIsExpanded ? null : categoryKey)} type="button"><span className={categoryIsExpanded ? styles.categoryChevronOpen : undefined}>›</span>{category.label}</button></td><td className={category.amount > 0 ? styles.incomeText : styles.costText}>{formatThousands(category.amount)}</td></tr>{categoryIsExpanded ? <tr><td colSpan={2}><div className={styles.transactionDetails}><strong>Konton i {category.label}</strong><table className={styles.liquidityCategoryTable}><thead><tr><th>Konto</th><th>Utfall/prognos</th></tr></thead><tbody>{accountGroups.map((account) => { const accountKey = `${categoryKey}:${account.account}`; const accountIsExpanded = expandedMonthCategoryAccount === accountKey; const accountTransactions = accountIsExpanded ? transactions.filter((transaction) => transaction.account === account.account) : []; return <Fragment key={account.account}><tr><td><button className={styles.accountDetailToggle} aria-expanded={accountIsExpanded} onClick={() => setExpandedMonthCategoryAccount(accountIsExpanded ? null : accountKey)} type="button"><span className={accountIsExpanded ? styles.categoryChevronOpen : undefined}>›</span>{account.account} · {account.accountName}</button></td><td className={account.amount > 0 ? styles.incomeText : styles.costText}>{formatThousands(account.amount)}</td></tr>{accountIsExpanded ? <tr><td colSpan={2}><div className={styles.transactionDetails}><strong>Transaktioner för {account.account}</strong><table className={styles.liquidityTransactionTable}><thead><tr><th>Datum</th><th>Verifikation</th><th>Text</th><th>Utfall/prognos</th></tr></thead><tbody>{accountTransactions.map((transaction, transactionIndex) => <tr className={transaction.sourceYear !== selectedYear ? styles.forecastTransaction : undefined} key={`${transaction.date}-${transaction.voucher}-${transactionIndex}`} title={transaction.sourceYear !== selectedYear ? `Prognos från ${transaction.sourceYear}` : undefined}><td>{transaction.date}</td><td>{transaction.voucher}</td><td>{transaction.text}</td><td className={transaction.amount > 0 ? styles.incomeText : styles.costText}>{formatThousands(transaction.amount)}</td></tr>)}</tbody></table></div></td></tr> : null}</Fragment>; })}</tbody></table></div></td></tr> : null}</Fragment>; }) : <tr><td colSpan={2}>Inga resultattransaktioner för månaden.</td></tr>}</tbody><tfoot><tr><td>Total</td><td>{formatThousands(monthCategories.reduce((sum, category) => sum + category.amount, 0))}</td></tr></tfoot></table></div></td></tr> : null}</Fragment>; })}</tbody></table></div>
+          </div>
         </article>
       </section>
     </main>

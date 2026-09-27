@@ -6,7 +6,7 @@ import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, 
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
 import { parseBudgetBuffer } from "@/lib/budget/parser";
-import { buildBudgetCategorySummary, buildCashForecast, buildProjectedResult, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
+import { buildBudgetCategorySummary, buildCashForecast, buildProjectedResult, buildUnbudgetedAccountSummary, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
 import type { AccountingDataset, BudgetDataset } from "@/lib/sie/types";
 import styles from "./page.module.css";
 
@@ -39,7 +39,12 @@ export default function OverviewPage() {
 
   const year = budget?.year ?? (Number(dataset.latestVoucherDate?.slice(0, 4)) || new Date().getFullYear());
   const projectedResult = buildProjectedResult(dataset, year, "latestDate");
-  const categorySummaries = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget, categories).filter((category) => category.id !== "other").slice(0, 6) : [], [dataset, budget, categories]);
+  const categorySummaries = useMemo(() => {
+    if (!budget) return [];
+    const summaries = buildBudgetCategorySummary(dataset, budget, categories);
+    const unbudgeted = buildUnbudgetedAccountSummary(dataset, budget);
+    return unbudgeted.length ? [...summaries, { id: "unbudgeted", label: "Konton utan budget", budget: 0, actual: unbudgeted.reduce((sum, account) => sum + account.actual, 0), variance: unbudgeted.reduce((sum, account) => sum + account.variance, 0) }] : summaries;
+  }, [dataset, budget, categories]);
   const budgetTotals = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget, categories).reduce((sum, category) => ({ budget: sum.budget + category.budget, actual: sum.actual + category.actual, variance: sum.variance + category.variance }), { budget: 0, actual: 0, variance: 0 }) : undefined, [dataset, budget, categories]);
   const maxVariance = Math.max(...categorySummaries.map((category) => Math.abs(category.variance)), Math.abs(budgetTotals?.variance ?? 0), 1);
   const latestDate = dataset.latestVoucherDate;

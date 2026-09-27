@@ -720,6 +720,28 @@
   min-width: 0;
 }
 
+.accountSelectorToggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font: inherit;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.accountSelectorToggle span {
+  font-weight: 750;
+}
+
+.accountSelectorToggle small {
+  margin: 0 0 0 auto;
+}
+
 .categoryChoices {
   display: grid;
   gap: 7px 8px;
@@ -1459,6 +1481,40 @@ button.categoryChangeRow:hover .categoryChangeTrack {
 .transactionDetails th:nth-last-child(-n + 2),
 .transactionDetails td:nth-last-child(-n + 2) {
   text-align: right;
+}
+
+.liquidityCategoryTable {
+  min-width: 0 !important;
+}
+
+.liquidityCategoryTable th:first-child,
+.liquidityCategoryTable td:first-child {
+  text-align: left;
+}
+
+.liquidityCategoryTable th:last-child,
+.liquidityCategoryTable td:last-child {
+  text-align: right;
+}
+
+.liquidityTransactionTable {
+  min-width: 760px !important;
+}
+
+.liquidityTransactionTable th,
+.liquidityTransactionTable td {
+  text-align: left !important;
+}
+
+.liquidityTransactionTable th:last-child,
+.liquidityTransactionTable td:last-child {
+  text-align: right !important;
+}
+
+.forecastTransaction td,
+.forecastTransaction td.incomeText,
+.forecastTransaction td.costText {
+  color: var(--forecast) !important;
 }
 
 .categoryChangeRow > strong {

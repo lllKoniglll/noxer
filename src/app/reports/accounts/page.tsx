@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { SortableTable } from "@/app/sortable-table";
 import { getAccountCategory } from "@/lib/reports/categories";
@@ -25,6 +25,7 @@ function AccountComparisonPageContent() {
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [accountFilter, setAccountFilter] = useState("");
+  const [accountsExpanded, setAccountsExpanded] = useState(false);
 
   useEffect(() => {
     loadAccountingDataset(files).then((nextDataset) => {
@@ -120,25 +121,27 @@ function AccountComparisonPageContent() {
                 );
               })}
             </div>
-            <span className={styles.filterLabel}>Konton</span>
-            <input
-              aria-label="Filtrera konton"
-              className={styles.accountSearch}
-              onChange={(event) => setAccountFilter(event.target.value)}
-              placeholder="Sök kontonummer eller namn..."
-              type="search"
-              value={accountFilter}
-            />
-            <small className={styles.accountSelectorMeta}>Senaste årets resultat · visar {visibleAccountOptions.length} av {accountOptions.length} konton</small>
-            <div className={styles.accountChoices}>
-            {visibleAccountOptions.map((item) => (
-              <label key={item.account} className={selectedAccounts.includes(item.account) ? styles.accountChoiceSelected : styles.accountChoice}>
-                <input checked={selectedAccounts.includes(item.account)} onChange={() => toggleAccount(item.account)} type="checkbox" />
-                <span><strong>{item.account}</strong><small>{item.name}</small></span>
-                <em className={item.latestResult > 0 ? styles.accountPositive : styles.accountNegative}>{formatThousands(item.latestResult)}</em>
-              </label>
-            ))}
-            </div>
+            <button className={styles.accountSelectorToggle} aria-expanded={accountsExpanded} onClick={() => setAccountsExpanded((expanded) => !expanded)} type="button"><ChevronRight className={accountsExpanded ? styles.categoryChevronOpen : undefined} size={17} aria-hidden="true" /><span>Konton</span><small>{selectedAccounts.length} valda · {accountOptions.length} tillgängliga</small></button>
+            {accountsExpanded ? <>
+              <input
+                aria-label="Filtrera konton"
+                className={styles.accountSearch}
+                onChange={(event) => setAccountFilter(event.target.value)}
+                placeholder="Sök kontonummer eller namn..."
+                type="search"
+                value={accountFilter}
+              />
+              <small className={styles.accountSelectorMeta}>Senaste årets resultat · visar {visibleAccountOptions.length} av {accountOptions.length} konton</small>
+              <div className={styles.accountChoices}>
+              {visibleAccountOptions.map((item) => (
+                <label key={item.account} className={selectedAccounts.includes(item.account) ? styles.accountChoiceSelected : styles.accountChoice}>
+                  <input checked={selectedAccounts.includes(item.account)} onChange={() => toggleAccount(item.account)} type="checkbox" />
+                  <span><strong>{item.account}</strong><small>{item.name}</small></span>
+                  <em className={item.latestResult > 0 ? styles.accountPositive : styles.accountNegative}>{formatThousands(item.latestResult)}</em>
+                </label>
+              ))}
+              </div>
+            </> : null}
           </div>
         </section>
 

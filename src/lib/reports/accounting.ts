@@ -55,6 +55,52 @@ export type CategoryAccountSummary = {
   previousAmount: number;
 };
 
+export type MonthlyCategorySummary = {
+  id: string;
+  label: string;
+  amount: number;
+};
+
+export type MonthlyCategoryTransaction = {
+  sourceYear: number;
+  account: string;
+  accountName: string;
+  date: string;
+  voucher: string;
+  text: string;
+  amount: number;
+};
+
+function liquidityVoucherIncluded(
+  dataset: AccountingDataset,
+  voucher: Voucher,
+  selectedYear: number,
+  month: number,
+  forecastMode: CashForecastMode
+): boolean {
+  const latestDate = latestVoucherDateForYear(dataset, selectedYear);
+  if (!latestDate) return false;
+  if (monthFromDate(voucher.date) !== month) return false;
+  const latestMonth = monthFromDate(latestDate);
+  const partialLatestMonth = !isEndOfMonth(latestDate);
+  const year = yearFromDate(voucher.date);
+
+  if (year === selectedYear) {
+    if (month < latestMonth) return true;
+    if (month === latestMonth && forecastMode === "latestDate") return !partialLatestMonth || voucher.date <= latestDate;
+    return false;
+  }
+
+  if (year === selectedYear - 1) {
+    if (month > latestMonth) return true;
+    if (month === latestMonth) {
+      if (forecastMode === "fullMonth") return true;
+      return partialLatestMonth && voucher.date > `${selectedYear - 1}${latestDate.slice(4)}`;
+    }
+  }
+  return false;
+}
+
 export type AccountActivity = {
   account: string;
   name: string;
@@ -233,6 +279,21 @@ export function buildBudgetAccountSummary(dataset: AccountingDataset, budget: Bu
       variance: roundSek((actuals.get(row.account) ?? 0) - row.amount)
     }))
     .sort((left, right) => Math.abs(right.budget) - Math.abs(left.budget) || left.account.localeCompare(right.account, "sv", { numeric: true }));
+}
+
+export function buildUnbudgetedAccountSummary(dataset: AccountingDataset, budget: BudgetDataset): BudgetAccountSummary[] {
+  const actuals = actualAmountsByAccount(dataset, budget.year);
+  const budgetedAccounts = new Set(budget.rows.map((row) => row.account));
+  return Array.from(actuals.entries())
+    .filter(([account, actual]) => !budgetedAccounts.has(account) && actual !== 0)
+    .map(([account, actual]) => ({
+      account,
+      name: dataset.accounts.get(account)?.name ?? "Okänt konto",
+      budget: 0,
+      actual: roundSek(actual),
+      variance: roundSek(actual)
+    }))
+    .sort((left, right) => Math.abs(right.actual) - Math.abs(left.actual) || left.account.localeCompare(right.account, "sv", { numeric: true }));
 }
 
 export function buildBudgetCategorySummary(dataset: AccountingDataset, budget: BudgetDataset, categories: AccountCategory[] = ACCOUNT_CATEGORIES): BudgetCategorySummary[] {
@@ -529,10 +590,119 @@ export function buildCategoryAccountSummary(
     .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount) || a.account.localeCompare(b.account, "sv", { numeric: true }));
 }
 
+export function buildMonthlyCategorySummary(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  month: number,
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES
+): MonthlyCategorySummary[] {
+  const summary = new Map<string, MonthlyCategorySummary>();
+  for (const category of categories) {
+    summary.set(category.id, { id: category.id, label: category.label, amount: 0 });
+  }
+
+  for (const voucher of dataset.vouchers) {
+    if (yearFromDate(voucher.date) !== selectedYear || monthFromDate(voucher.date) !== month) continue;
+    for (const transaction of voucher.transactions) {
+      if (!classifyResultTransaction(transaction)) continue;
+      const category = getAccountCategory(transaction.account, categories);
+      const row = summary.get(category.id);
+      if (row) row.amount += comparisonAmount(transaction);
+    }
+  }
+
+  return Array.from(summary.values())
+    .map((row) => ({ ...row, amount: roundSek(row.amount) }))
+    .filter((row) => row.amount !== 0)
+    .sort((left, right) => Math.abs(right.amount) - Math.abs(left.amount));
+}
+
+export function buildMonthlyCategoryTransactions(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  month: number,
+  categoryId: string,
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES
+): MonthlyCategoryTransaction[] {
+  const rows: MonthlyCategoryTransaction[] = [];
+  for (const voucher of dataset.vouchers) {
+    if (yearFromDate(voucher.date) !== selectedYear || monthFromDate(voucher.date) !== month) continue;
+    for (const transaction of voucher.transactions) {
+      if (!classifyResultTransaction(transaction) || getAccountCategory(transaction.account, categories).id !== categoryId) continue;
+      rows.push({
+        sourceYear: yearFromDate(voucher.date),
+        account: transaction.account,
+        accountName: dataset.accounts.get(transaction.account)?.name ?? "Okänt konto",
+        date: formatSieDate(voucher.date),
+        voucher: `${voucher.series}${voucher.number}`,
+        text: transaction.text || voucher.text || "(utan text)",
+        amount: roundSek(comparisonAmount(transaction))
+      });
+    }
+  }
+  return rows.sort((left, right) => `${left.date} ${left.voucher} ${left.account}`.localeCompare(`${right.date} ${right.voucher} ${right.account}`, "sv", { numeric: true }));
+}
+
+export function buildLiquidityCategorySummary(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  month: number,
+  forecastMode: CashForecastMode,
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES
+): MonthlyCategorySummary[] {
+  const summary = new Map<string, MonthlyCategorySummary>();
+  for (const category of categories) summary.set(category.id, { id: category.id, label: category.label, amount: 0 });
+
+  for (const voucher of dataset.vouchers) {
+    if (!liquidityVoucherIncluded(dataset, voucher, selectedYear, month, forecastMode)) continue;
+    for (const transaction of voucher.transactions) {
+      if (!classifyResultTransaction(transaction)) continue;
+      const row = summary.get(getAccountCategory(transaction.account, categories).id);
+      if (row) row.amount += comparisonAmount(transaction);
+    }
+  }
+
+  return Array.from(summary.values())
+    .map((row) => ({ ...row, amount: roundSek(row.amount) }))
+    .filter((row) => row.amount !== 0)
+    .sort((left, right) => Math.abs(right.amount) - Math.abs(left.amount));
+}
+
+export function buildLiquidityCategoryTransactions(
+  dataset: AccountingDataset,
+  selectedYear: number,
+  month: number,
+  categoryId: string,
+  forecastMode: CashForecastMode,
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES
+): MonthlyCategoryTransaction[] {
+  const rows: MonthlyCategoryTransaction[] = [];
+  for (const voucher of dataset.vouchers) {
+    if (!liquidityVoucherIncluded(dataset, voucher, selectedYear, month, forecastMode)) continue;
+    for (const transaction of voucher.transactions) {
+      if (!classifyResultTransaction(transaction) || getAccountCategory(transaction.account, categories).id !== categoryId) continue;
+      rows.push({
+        sourceYear: yearFromDate(voucher.date),
+        account: transaction.account,
+        accountName: dataset.accounts.get(transaction.account)?.name ?? "Okänt konto",
+        date: formatSieDate(voucher.date),
+        voucher: `${voucher.series}${voucher.number}`,
+        text: transaction.text || voucher.text || "(utan text)",
+        amount: roundSek(comparisonAmount(transaction))
+      });
+    }
+  }
+  return rows.sort((left, right) => `${left.date} ${left.voucher} ${left.account}`.localeCompare(`${right.date} ${right.voucher} ${right.account}`, "sv", { numeric: true }));
+}
+
 function cashOpeningBalance(dataset: AccountingDataset): number {
   return dataset.openingBalances
     .filter((balance) => balance.yearIndex === 0 && CASH_ACCOUNTS.has(balance.account))
     .reduce((sum, balance) => sum + balance.amount, 0);
+}
+
+export function getCashOpeningBalance(dataset: AccountingDataset): number {
+  return roundSek(cashOpeningBalance(dataset));
 }
 
 function isEndOfMonth(date: string): boolean {
