@@ -83,6 +83,7 @@ function AccountComparisonPageContent() {
           <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
           <Link className={styles.active} href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</Link>
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/budget/annual"><WalletCards size={18} aria-hidden="true" />Budget över året</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
           <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>

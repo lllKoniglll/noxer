@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
 import { parseBudgetBuffer } from "@/lib/budget/parser";
-import { buildAccountTransactions, buildBudgetAccountSummary, buildBudgetCategorySummary, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
+import { buildAccountTransactions, buildBudgetAccountSummary, buildBudgetCategorySummary, buildUnbudgetedAccountSummary, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
 import { getAccountCategory } from "@/lib/reports/categories";
 import type { BudgetDataset, AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
@@ -42,8 +42,10 @@ function BudgetPage() {
   const budget = budgets.find((entry) => entry.fileName === selectedFile) ?? budgets.at(-1);
   const categorySummaries = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget, categories) : [], [dataset, budget, categories]);
   const accounts = useMemo(() => budget ? buildBudgetAccountSummary(dataset, budget) : [], [dataset, budget]);
+  const unbudgetedAccounts = useMemo(() => budget ? buildUnbudgetedAccountSummary(dataset, budget) : [], [dataset, budget]);
+  const diagramCategories = useMemo(() => unbudgetedAccounts.length ? [...categorySummaries, { id: "unbudgeted", label: "Konton utan budget", budget: 0, actual: unbudgetedAccounts.reduce((sum, account) => sum + account.actual, 0), variance: unbudgetedAccounts.reduce((sum, account) => sum + account.variance, 0) }] : categorySummaries, [categorySummaries, unbudgetedAccounts]);
   const totals = useMemo(() => accounts.reduce((sum, row) => ({ budget: sum.budget + row.budget, actual: sum.actual + row.actual, variance: sum.variance + row.variance }), { budget: 0, actual: 0, variance: 0 }), [accounts]);
-  const maxVariance = Math.max(...categorySummaries.map((category) => Math.abs(category.variance)), Math.abs(totals.variance), 1);
+  const maxVariance = Math.max(...diagramCategories.map((category) => Math.abs(category.variance)), Math.abs(totals.variance), 1);
 
   return (
     <main className={styles.shell}>
@@ -56,6 +58,7 @@ function BudgetPage() {
           <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
           <Link href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</Link>
           <Link className={styles.active} href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/budget/annual"><WalletCards size={18} aria-hidden="true" />Budget över året</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
           <Link href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
@@ -82,9 +85,9 @@ function BudgetPage() {
               <div className={styles.panelHeader}><div><span>Kategorier</span><h2>Avvikelse mot budget</h2></div></div>
               <p className={styles.copy}>Grönt betyder att utfallet är bättre än budgeten. Kostnader är negativa, så en mindre kostnad ger en positiv avvikelse.</p>
               <div className={styles.categoryChangeChart} aria-label="Horisontellt stapeldiagram över avvikelse per kategori">
-                {categorySummaries.map((category) => {
+                {diagramCategories.map((category) => {
                   const isExpanded = expandedCategory === category.id;
-                  const categoryAccounts = isExpanded ? accounts.filter((account) => getAccountCategory(account.account, categories).id === category.id) : [];
+                  const categoryAccounts = isExpanded ? category.id === "unbudgeted" ? unbudgetedAccounts : accounts.filter((account) => getAccountCategory(account.account, categories).id === category.id) : [];
                   return (
                     <div className={styles.categoryChangeItem} key={category.id}>
                       <button className={styles.categoryChangeRow} data-tooltip={`${category.label}: ${formatThousands(category.variance)}`} onClick={() => setExpandedCategory(isExpanded ? null : category.id)} title={`${category.label}: ${formatThousands(category.variance)}`} type="button" aria-expanded={isExpanded}>

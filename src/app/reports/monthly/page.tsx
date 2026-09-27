@@ -95,6 +95,7 @@ function MonthlyReportPageContent() {
             Kontojämförelse
           </Link>
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/budget/annual"><WalletCards size={18} aria-hidden="true" />Budget över året</Link>
           <Link href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat

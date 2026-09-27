@@ -123,6 +123,23 @@ export type BudgetAccountSummary = {
   variance: number;
 };
 
+export type BudgetPeriodizationCategory = {
+  id: string;
+  label: string;
+  budget: number;
+  periodized: number[];
+  actual: number[];
+};
+
+export type BudgetPeriodizationReport = {
+  categories: BudgetPeriodizationCategory[];
+  months: Array<{ month: number; label: string; budget: number; actual: number; variance: number }>;
+  historicalYears: number[];
+  latestMonth: number;
+};
+
+export type BudgetPeriodizationMode = "straight" | "history";
+
 export type ComparisonMode = "fullYear" | "samePeriod";
 export type CashForecastMode = "latestDate" | "fullMonth";
 
@@ -314,6 +331,91 @@ export function buildBudgetCategorySummary(dataset: AccountingDataset, budget: B
     .map((row) => ({ ...row, budget: roundSek(row.budget), actual: roundSek(row.actual), variance: roundSek(row.variance) }))
     .filter((row) => row.budget !== 0 || row.actual !== 0)
     .sort((left, right) => Math.abs(right.actual) - Math.abs(left.actual));
+}
+
+export function buildBudgetPeriodization(
+  dataset: AccountingDataset,
+  budget: BudgetDataset,
+  categories: AccountCategory[] = ACCOUNT_CATEGORIES,
+  mode: BudgetPeriodizationMode = "history"
+): BudgetPeriodizationReport {
+  const budgetByCategory = new Map(categories.map((category) => [category.id, 0]));
+  for (const row of budget.rows) {
+    const category = getAccountCategory(row.account, categories);
+    budgetByCategory.set(category.id, (budgetByCategory.get(category.id) ?? 0) + row.amount);
+  }
+
+  const historicalYears = getAvailableYears(dataset).filter((year) => year < budget.year).slice(-2);
+  const historicalByYear = new Map<number, Map<string, number[]>>();
+  for (const year of historicalYears) {
+    const byCategory = new Map<string, number[]>();
+    for (const category of categories) byCategory.set(category.id, Array(12).fill(0));
+    for (const voucher of dataset.vouchers) {
+      if (yearFromDate(voucher.date) !== year) continue;
+      const month = monthFromDate(voucher.date) - 1;
+      for (const transaction of voucher.transactions) {
+        if (!classifyResultTransaction(transaction)) continue;
+        const values = byCategory.get(getAccountCategory(transaction.account, categories).id);
+        if (values) values[month] += Math.abs(comparisonAmount(transaction));
+      }
+    }
+    historicalByYear.set(year, byCategory);
+  }
+
+  const actualByCategory = new Map<string, number[]>();
+  for (const category of categories) actualByCategory.set(category.id, Array(12).fill(0));
+  for (const voucher of dataset.vouchers) {
+    if (yearFromDate(voucher.date) !== budget.year) continue;
+    const month = monthFromDate(voucher.date) - 1;
+    for (const transaction of voucher.transactions) {
+      if (!classifyResultTransaction(transaction)) continue;
+      const values = actualByCategory.get(getAccountCategory(transaction.account, categories).id);
+      if (values) values[month] += comparisonAmount(transaction);
+    }
+  }
+
+  const periodizedCategories = categories.map((category) => {
+    const categoryBudget = budgetByCategory.get(category.id) ?? 0;
+    const rawShares = mode === "straight" ? Array(12).fill(1 / 12) : Array.from({ length: 12 }, (_, month) => {
+      const yearlyShares = historicalYears.map((year) => {
+        const values = historicalByYear.get(year)?.get(category.id) ?? [];
+        const total = values.reduce((sum, value) => sum + value, 0);
+        return total > 0 ? values[month] / total : null;
+      }).filter((value): value is number => value !== null);
+      return yearlyShares.length ? yearlyShares.reduce((sum, value) => sum + value, 0) / yearlyShares.length : 1 / 12;
+    });
+    const shareTotal = rawShares.reduce((sum, share) => sum + share, 0);
+    const shares = shareTotal > 0 ? rawShares.map((share) => share / shareTotal) : Array(12).fill(1 / 12);
+    let allocated = 0;
+    const periodized = shares.map((share, month) => {
+      const amount = month === shares.length - 1 ? categoryBudget - allocated : categoryBudget * share;
+      allocated += amount;
+      return amount;
+    });
+    return {
+      id: category.id,
+      label: category.label,
+      budget: roundSek(categoryBudget),
+      periodized,
+      actual: (actualByCategory.get(category.id) ?? Array(12).fill(0)).map(roundSek)
+    };
+  });
+
+  const latestDate = latestVoucherDateForYear(dataset, budget.year);
+  const latestMonth = latestDate ? monthFromDate(latestDate) : 0;
+  const months = Array.from({ length: 12 }, (_, index) => {
+    const budgetAmount = periodizedCategories.reduce((sum, category) => sum + category.periodized[index], 0);
+    const actualAmount = periodizedCategories.reduce((sum, category) => sum + category.actual[index], 0);
+    return {
+      month: index + 1,
+      label: MONTH_LABELS[index],
+      budget: budgetAmount,
+      actual: roundSek(actualAmount),
+      variance: actualAmount - budgetAmount
+    };
+  });
+
+  return { categories: periodizedCategories, months, historicalYears, latestMonth };
 }
 
 export function getAvailableYears(dataset: AccountingDataset): number[] {
