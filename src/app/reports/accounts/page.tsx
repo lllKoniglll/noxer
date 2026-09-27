@@ -93,7 +93,7 @@ function AccountComparisonPageContent() {
         <header className={styles.topbar}>
           <div>
             <p>{dataset.organizationName}</p>
-            <h1>Kontojämförelse</h1>
+            <h1>Konton och avvikelser</h1>
             <span className={styles.fileStatus}>Jämför valda konton per månad och år</span>
           </div>
           <div className={styles.actions}>

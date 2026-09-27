@@ -86,7 +86,7 @@ function LiquidityReportPageContent() {
         <header className={styles.topbar}>
           <div>
             <p>{dataset.organizationName}</p>
-            <h1>Likviditet {selectedYear}</h1>
+            <h1>Likviditet och prognos {selectedYear}</h1>
             <span className={styles.fileStatus}>
               Faktiskt till {dataset.latestVoucherDate ?? "saknas"}, {forecastMode === "latestDate" ? "prognos från nästa dag" : "prognos från föregående hela månad"}
             </span>

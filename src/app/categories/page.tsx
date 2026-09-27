@@ -75,6 +75,21 @@ export default function CategoryEditorPage() {
     setAccountSearch("");
   }
 
+  function addSearchMatches(categoryId: string) {
+    const query = accountSearch.trim().toLowerCase();
+    if (!query) return;
+    const matches = accountActivity
+      .filter((account) => `${account.account} ${account.name}`.toLowerCase().includes(query))
+      .map((account) => account.account);
+    if (!matches.length) return;
+    const numericQuery = /^\d+$/.test(query);
+    const rules = numericQuery ? [query] : matches;
+    updateDraft(draft.map((category) => category.id === categoryId
+      ? { ...category, accounts: [...category.accounts.filter((value) => !rules.includes(value)), ...rules] }
+      : { ...category, accounts: category.accounts.filter((value) => !matches.includes(value) && !(numericQuery && value.startsWith(query))) }), true);
+    setAccountSearch("");
+  }
+
   function addCategory() {
     const label = newCategoryName.trim();
     if (!label) return;
@@ -177,9 +192,10 @@ export default function CategoryEditorPage() {
                 {isExpanded ? <div className={styles.categoryEditorBody}>
                   {isEditable ? <>
                     <div className={styles.categoryNameRow}><label>Namn<input value={category.label} onChange={(event) => updateCategory(category.id, (item) => ({ ...item, label: event.target.value }))} /></label><button className={styles.secondaryButton} disabled={saving || category.label.trim() === (categories.find((saved) => saved.id === category.id)?.label ?? "").trim()} onClick={saveCategory} type="button">{saving ? "Sparar..." : "Spara namn"}</button></div>
-                    <div className={styles.categoryAccountRules}><strong>Konton och prefix</strong>{category.accounts.length ? category.accounts.map((account) => { const names = accountActivity.filter((item) => item.account === account || item.account.startsWith(account)).map((item) => item.name).filter(Boolean).filter((name, index, values) => values.indexOf(name) === index); return <span key={account}><strong>{account}</strong>{names.length ? <small>{names.join(", ")}</small> : null}<button aria-label={`Ta bort ${account} från ${category.label}`} onClick={() => updateCategory(category.id, (item) => ({ ...item, accounts: item.accounts.filter((value) => value !== account) }), true)} type="button"><Trash2 size={15} aria-hidden="true" /></button></span>; }) : <small>Inga konton tillagda ännu.</small>}</div>
+                    <div className={styles.categoryAccountRules}><strong>Konton i kategorin ({actualAccounts.length})</strong>{actualAccounts.length ? actualAccounts.map((account) => <span key={account.account}><strong>{account.account}</strong><small>{account.name}</small></span>) : <small>Inga konton matchar kategorin ännu.</small>}</div>
+                    <div className={styles.categoryAccountRules}><strong>Regler och prefix</strong>{category.accounts.length ? category.accounts.map((account) => <span key={account}><strong>{account}</strong><button aria-label={`Ta bort ${account} från ${category.label}`} onClick={() => updateCategory(category.id, (item) => ({ ...item, accounts: item.accounts.filter((value) => value !== account) }), true)} type="button"><Trash2 size={15} aria-hidden="true" /></button></span>) : <small>Inga regler tillagda ännu.</small>}</div>
                     <label>Sök konto för att lägga till<input placeholder="Sök på kontonummer eller namn..." value={accountSearch} onChange={(event) => setAccountSearch(event.target.value)} /></label>
-                    {accountSearch.trim() ? <div className={styles.accountSearchResults}>{matchingAccounts.length ? matchingAccounts.map((account) => <button key={account.account} onClick={() => addNamedAccount(category.id, account.account)} type="button"><strong>{account.account}</strong><span>{account.name}</span></button>) : <small>Inga konton matchar sökningen.</small>}</div> : null}
+                    {accountSearch.trim() ? <div className={styles.accountSearchResults}>{matchingAccounts.length ? <><button className={styles.addAllButton} onClick={() => addSearchMatches(category.id)} type="button">Lägg till alla</button>{matchingAccounts.map((account) => <button key={account.account} onClick={() => addNamedAccount(category.id, account.account)} type="button"><strong>{account.account}</strong><span>{account.name}</span></button>)}</> : <small>Inga konton matchar sökningen.</small>}</div> : null}
                     <button className={styles.dangerButton} onClick={() => removeCategory(category.id)} type="button"><Trash2 size={16} aria-hidden="true" />Ta bort kategori</button>
                   </> : <>
                     <p className={styles.copy}>Övrigt fylls automatiskt med konton som inte matchar någon annan kategori.</p>

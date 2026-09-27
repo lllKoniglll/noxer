@@ -66,7 +66,7 @@ export default function OverviewPage() {
 
       <section className={styles.workspace}>
         <header className={styles.topbar}>
-          <div><p>{dataset.organizationName}</p><h1>Översikt {year}</h1><span className={styles.fileStatus}>{latestDate ? `Utfall t.o.m. ${latestDate}` : "Ladda upp underlag på sidan Filer"}</span></div>
+          <div><p>{dataset.organizationName}</p><h1>Ekonomisk översikt {year}</h1><span className={styles.fileStatus}>{latestDate ? `Utfall t.o.m. ${latestDate}` : "Ladda upp underlag på sidan Filer"}</span></div>
         </header>
 
         {!files.length ? <div className={styles.emptyState}><BarChart3 size={32} aria-hidden="true" /><h2>Översikten fylls när du laddar upp underlag</h2><p>Ladda upp SIE4-filer och gärna resultatrapporten med budget på sidan Filer.</p></div> : (

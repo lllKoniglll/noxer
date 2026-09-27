@@ -109,7 +109,7 @@ function MonthlyReportPageContent() {
         <header className={styles.topbar}>
           <div>
             <p>{dataset.organizationName}</p>
-            <h1>Månadsöversikt {selectedYear}</h1>
+            <h1>Resultat och utveckling {selectedYear}</h1>
             <span className={styles.fileStatus}>
               {dataset.files.length} SIE4-filer inlästa, senaste verifikation {dataset.latestVoucherDate}
             </span>

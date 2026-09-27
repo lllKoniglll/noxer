@@ -266,6 +266,7 @@ export function getAvailableAccounts(dataset: AccountingDataset): string[] {
 export function getAccountActivity(dataset: AccountingDataset): AccountActivity[] {
   const latestYear = getAvailableYears(dataset).at(-1);
   const result = new Map<string, number>();
+  for (const account of dataset.accounts.keys()) result.set(account, 0);
   for (const voucher of dataset.vouchers) {
     const voucherYear = yearFromDate(voucher.date);
     for (const transaction of voucher.transactions) {

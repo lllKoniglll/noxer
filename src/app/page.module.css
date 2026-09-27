@@ -176,6 +176,8 @@
 .accountSearchResults button { align-items: center; background: #f7faf8; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); cursor: pointer; display: flex; gap: 10px; justify-content: flex-start; padding: 8px 10px; text-align: left; }
 .accountSearchResults button:hover { background: #eaf3ed; }
 .accountSearchResults button span { color: var(--muted); }
+.accountSearchResults .addAllButton { background: #16834b; border-color: #16834b; color: white; font-weight: 700; justify-content: center; text-align: center; }
+.accountSearchResults .addAllButton:hover { background: #126b3d; }
 .dangerButton { align-items: center; background: transparent; border: 0; color: var(--cost); cursor: pointer; display: inline-flex; gap: 7px; justify-self: start; padding: 4px 0; }
 .newCategoryPanel { background: var(--panel); border: 1px dashed var(--line); border-radius: 9px; margin-top: 18px; max-width: 900px; padding: 18px; }
 .newCategoryPanel h2 { font-size: 1.05rem; margin: 0 0 12px; }

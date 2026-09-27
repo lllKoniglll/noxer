@@ -53,7 +53,7 @@ function FileManagementPage() {
 
       <section className={styles.workspace}>
         <header className={styles.topbar}>
-          <div><p>Arbetsyta {group ?? ""}</p><h1>Filer</h1><span className={styles.fileStatus}>Ladda upp, kontrollera och uppdatera underlag för rapporterna</span></div>
+          <div><p>Arbetsyta {group ?? ""}</p><h1>Underlag och filer</h1><span className={styles.fileStatus}>Ladda upp, kontrollera och uppdatera underlag för rapporterna</span></div>
           <label className={styles.uploadButton} htmlFor="file-upload"><FileUp size={18} aria-hidden="true" />Ladda upp fil<input id="file-upload" type="file" accept=".se,.sie,.se4,.xls,text/plain,application/octet-stream" multiple onChange={(event) => setFiles(Array.from(event.currentTarget.files ?? []))} /></label>
         </header>
 

@@ -106,7 +106,7 @@ function CategoriesReportPageContent() {
         <header className={styles.topbar}>
           <div>
             <p>{dataset.organizationName}</p>
-            <h1>Kategorier {selectedYear}</h1>
+            <h1>Resultat per kategori {selectedYear}</h1>
             <span className={styles.fileStatus}>Begripliga kontogrupper för styrelseuppföljning</span>
           </div>
           <div className={styles.actions}>
@@ -122,7 +122,7 @@ function CategoriesReportPageContent() {
           <div className={styles.panelHeader}>
             <div>
               <span>Kategorier</span>
-              <h2>Nettoresultat jämfört med {comparisonLabel.toLowerCase()}</h2>
+              <h2>Resultat och avvikelse jämfört med {comparisonLabel.toLowerCase()}</h2>
             </div>
           </div>
           <div className={styles.categoryChangeChart} aria-label="Horisontellt stapeldiagram över förändring per kategori">
