@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
 import { parseBudgetBuffer } from "@/lib/budget/parser";
-import { buildBudgetAccountSummary, buildBudgetCategorySummary, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
+import { buildAccountTransactions, buildBudgetAccountSummary, buildBudgetCategorySummary, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
 import { getAccountCategory } from "@/lib/reports/categories";
 import type { BudgetDataset, AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
@@ -23,6 +23,7 @@ function BudgetPage() {
   const [budgets, setBudgets] = useState<BudgetDataset[]>([]);
   const [selectedFile, setSelectedFile] = useState("");
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
 
   useEffect(() => { void loadAccountingDataset(files).then(setDataset); }, [files]);
   useEffect(() => {
@@ -92,7 +93,7 @@ function BudgetPage() {
                         <div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} />{category.variance !== 0 ? <span className={category.variance > 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(category.variance) / maxVariance * 50, 1)}%` }} /> : null}</div>
                         <span className={category.variance > 0 ? styles.betterText : category.variance < 0 ? styles.worseText : styles.neutralText}>{formatThousands(category.variance)}</span>
                       </button>
-                      {isExpanded ? <div className={styles.chartCategoryDetails}><strong>Konton i {category.label}</strong><table className={styles.categoryDetailsTable}><thead><tr><th>Konto</th><th>Budget</th><th>Utfall</th><th>Avvikelse</th></tr></thead><tbody>{categoryAccounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.budget)}>{formatThousands(account.budget)}</td><td className={amountClass(account.actual)}>{formatThousands(account.actual)}</td><td className={amountClass(account.variance)}>{formatThousands(account.variance)}</td></tr>)}</tbody><tfoot><tr><td>Total</td><td className={amountClass(category.budget)}>{formatThousands(category.budget)}</td><td className={amountClass(category.actual)}>{formatThousands(category.actual)}</td><td className={amountClass(category.variance)}>{formatThousands(category.variance)}</td></tr></tfoot></table></div> : null}
+                      {isExpanded ? <div className={styles.chartCategoryDetails}><strong>Konton i {category.label}</strong><table className={styles.categoryDetailsTable}><thead><tr><th>Konto</th><th>Budget</th><th>Utfall</th><th>Avvikelse</th></tr></thead><tbody>{categoryAccounts.map((account) => { const accountIsExpanded = expandedAccount === account.account; const transactions = accountIsExpanded ? buildAccountTransactions(dataset, [account.account]).filter((row) => (row.years[String(budget.year)] ?? 0) !== 0) : []; return <Fragment key={account.account}><tr><td><button className={styles.accountDetailToggle} onClick={() => setExpandedAccount(accountIsExpanded ? null : account.account)} type="button" aria-expanded={accountIsExpanded}><ChevronRight className={accountIsExpanded ? styles.categoryChevronOpen : undefined} size={15} aria-hidden="true" />{account.account} · {account.name}</button></td><td className={amountClass(account.budget)}>{formatThousands(account.budget)}</td><td className={amountClass(account.actual)}>{formatThousands(account.actual)}</td><td className={amountClass(account.variance)}>{formatThousands(account.variance)}</td></tr>{accountIsExpanded ? <tr><td colSpan={4}><div className={styles.transactionDetails}><strong>Transaktioner för {account.account}</strong><table><thead><tr><th>Datum</th><th>Verifikation</th><th>Text</th><th>Utfall</th></tr></thead><tbody>{transactions.map((transaction) => <tr key={`${transaction.date}-${transaction.voucher}-${transaction.text}`}><td>{transaction.date}</td><td>{transaction.voucher}</td><td>{transaction.text}</td><td className={amountClass(transaction.years[String(budget.year)] ?? 0)}>{formatThousands(transaction.years[String(budget.year)] ?? 0)}</td></tr>)}</tbody></table></div></td></tr> : null}</Fragment>; })}</tbody><tfoot><tr><td>Total</td><td className={amountClass(category.budget)}>{formatThousands(category.budget)}</td><td className={amountClass(category.actual)}>{formatThousands(category.actual)}</td><td className={amountClass(category.variance)}>{formatThousands(category.variance)}</td></tr></tfoot></table></div> : null}
                     </div>
                   );
                 })}

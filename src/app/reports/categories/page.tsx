@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Fragment, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { ComparisonToggle } from "@/app/report-controls";
 import {
   buildCategoryAccountSummary,
   buildCategorySummary,
+  buildAccountTransactions,
   comparisonCutoffDate,
   comparisonModeLabel,
   emptyAccountingDataset,
@@ -42,6 +43,7 @@ function CategoriesReportPageContent() {
   const { files, categories: categoryConfig } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
   useEffect(() => { loadAccountingDataset(files).then(setDataset); }, [files]);
   const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
@@ -141,7 +143,7 @@ function CategoriesReportPageContent() {
                     </div>
                     <span className={change > 0 ? styles.betterText : change < 0 ? styles.worseText : styles.neutralText}>{formatThousands(change)}</span>
                   </button>
-                  {isExpanded ? <div className={styles.chartCategoryDetails}><strong>Konton i {category.label}</strong><table className={styles.categoryDetailsTable}><thead><tr><th>Konto</th><th>{selectedYear - 1}</th><th>{selectedYear}</th></tr></thead><tbody>{accounts.map((account) => <tr key={account.account}><td>{account.account} · {account.name}</td><td className={amountClass(account.previousAmount)}>{formatThousands(account.previousAmount)}</td><td className={amountClass(account.amount)}>{formatThousands(account.amount)}</td></tr>)}</tbody><tfoot><tr><td>Total</td><td className={amountClass(category.previousAmount)}>{formatThousands(category.previousAmount)}</td><td className={amountClass(category.amount)}>{formatThousands(category.amount)}</td></tr></tfoot></table></div> : null}
+                  {isExpanded ? <div className={styles.chartCategoryDetails}><strong>Konton i {category.label}</strong><table className={styles.categoryDetailsTable}><thead><tr><th>Konto</th><th>{selectedYear - 1}</th><th>{selectedYear}</th></tr></thead><tbody>{accounts.map((account) => { const accountIsExpanded = expandedAccount === account.account; const transactions = accountIsExpanded ? buildAccountTransactions(dataset, [account.account]).filter((row) => (row.years[String(selectedYear - 1)] ?? 0) !== 0 || (row.years[String(selectedYear)] ?? 0) !== 0) : []; return <Fragment key={account.account}><tr><td><button className={styles.accountDetailToggle} onClick={() => setExpandedAccount(accountIsExpanded ? null : account.account)} type="button" aria-expanded={accountIsExpanded}><ChevronRight className={accountIsExpanded ? styles.categoryChevronOpen : undefined} size={15} aria-hidden="true" />{account.account} · {account.name}</button></td><td className={amountClass(account.previousAmount)}>{formatThousands(account.previousAmount)}</td><td className={amountClass(account.amount)}>{formatThousands(account.amount)}</td></tr>{accountIsExpanded ? <tr><td colSpan={3}><div className={styles.transactionDetails}><strong>Transaktioner för {account.account}</strong><table><thead><tr><th>Datum</th><th>Verifikation</th><th>Text</th><th>{selectedYear - 1}</th><th>{selectedYear}</th></tr></thead><tbody>{transactions.map((transaction) => <tr key={`${transaction.date}-${transaction.voucher}-${transaction.text}`}><td>{transaction.date}</td><td>{transaction.voucher}</td><td>{transaction.text}</td><td className={amountClass(transaction.years[String(selectedYear - 1)] ?? 0)}>{formatThousands(transaction.years[String(selectedYear - 1)] ?? 0)}</td><td className={amountClass(transaction.years[String(selectedYear)] ?? 0)}>{formatThousands(transaction.years[String(selectedYear)] ?? 0)}</td></tr>)}</tbody></table></div></td></tr> : null}</Fragment>; })}</tbody><tfoot><tr><td>Total</td><td className={amountClass(category.previousAmount)}>{formatThousands(category.previousAmount)}</td><td className={amountClass(category.amount)}>{formatThousands(category.amount)}</td></tr></tfoot></table></div> : null}
                 </div>
               );
             })}

@@ -1410,6 +1410,57 @@ button.categoryChangeRow:hover .categoryChangeTrack {
   font-weight: 800;
 }
 
+.accountDetailToggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 5px;
+  padding: 0;
+  text-align: left;
+}
+
+.transactionDetails {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  display: grid;
+  gap: 7px;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 9px;
+}
+
+.transactionDetails > strong {
+  font-size: .8rem;
+}
+
+.transactionDetails table {
+  border-collapse: collapse;
+  min-width: 680px;
+  width: 100%;
+}
+
+.transactionDetails th,
+.transactionDetails td {
+  border-top: 1px solid var(--line);
+  padding: 7px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.transactionDetails th {
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.transactionDetails th:nth-last-child(-n + 2),
+.transactionDetails td:nth-last-child(-n + 2) {
+  text-align: right;
+}
+
 .categoryChangeRow > strong {
   font-size: 0.82rem;
   line-height: 1.2;
