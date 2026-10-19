@@ -17,10 +17,7 @@ export default function ChatPage() {
         </div>
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
-          <Link href="/reports/monthly">
-            <BarChart3 size={18} aria-hidden="true" />
-            Månadsöversikt
-          </Link>
+          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/reports/liquidity">
             <LineChart size={18} aria-hidden="true" />
             Likviditet
@@ -29,11 +26,14 @@ export default function ChatPage() {
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
           </Link>
+          <Link href="/reports/monthly">
+            <BarChart3 size={18} aria-hidden="true" />
+            Månadsöversikt
+          </Link>
           <Link href="/reports/accounts">
             <BarChart3 size={18} aria-hidden="true" />
             Kontojämförelse
           </Link>
-          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link className={styles.active} href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat

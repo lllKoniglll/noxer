@@ -77,10 +77,7 @@ function CategoriesReportPageContent() {
         </div>
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
-          <Link href={`/reports/monthly${comparisonQuery}`}>
-            <BarChart3 size={18} aria-hidden="true" />
-            Månadsöversikt
-          </Link>
+          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href={`/reports/liquidity${comparisonQuery}`}>
             <LineChart size={18} aria-hidden="true" />
             Likviditet
@@ -89,11 +86,14 @@ function CategoriesReportPageContent() {
             <CalendarRange size={18} aria-hidden="true" />
             Kategorier
           </Link>
+          <Link href={`/reports/monthly${comparisonQuery}`}>
+            <BarChart3 size={18} aria-hidden="true" />
+            Månadsöversikt
+          </Link>
           <Link href="/reports/accounts">
             <BarChart3 size={18} aria-hidden="true" />
             Kontojämförelse
           </Link>
-          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/chat">
             <Bot size={18} aria-hidden="true" />
             Chat
