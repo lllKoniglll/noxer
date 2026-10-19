@@ -66,23 +66,9 @@ export default function BudgetAnnualPage() {
     }
     return Array.from(rows.values()).sort((left, right) => Math.abs(right.budget || right.actual) - Math.abs(left.budget || left.actual) || left.account.localeCompare(right.account, "sv", { numeric: true }));
   }, [budget, budgetAccounts, dataset]);
-  const unbudgetedCategory = useMemo(() => {
-    if (!budget) return null;
-    const unbudgetedAccounts = accountRows.filter((account) => account.budget === 0 && account.actual !== 0);
-    if (!unbudgetedAccounts.length) return null;
-    const actual = Array(12).fill(0) as number[];
-    for (const account of unbudgetedAccounts) {
-      for (const transaction of buildAccountTransactions(dataset, [account.account])) {
-        if (transaction.years[String(budget.year)] === undefined) continue;
-        const month = transactionMonth(transaction.date);
-        if (month >= 1 && month <= 12) actual[month - 1] += transaction.years[String(budget.year)] ?? 0;
-      }
-    }
-    return { id: "unbudgeted", label: "Konton utan budget", budget: 0, periodized: Array(12).fill(0), actual };
-  }, [accountRows, budget, dataset]);
   const visibleMonths = report ? periodView === "toDate" ? report.months.slice(0, report.latestMonth || 12) : report.months : [];
   const totals = visibleMonths.reduce((sum, month) => ({ budget: sum.budget + month.budget, actual: sum.actual + month.actual, variance: sum.variance + month.variance }), { budget: 0, actual: 0, variance: 0 });
-  const availableCategories = report ? [...report.categories, ...(unbudgetedCategory ? [unbudgetedCategory] : [])] : [];
+  const availableCategories = report ? report.categories : [];
   const selectedChartCategory = availableCategories.find((category) => category.id === chartCategory);
   const chartMetrics = selectedChartCategory ? visibleMonths.map((month) => {
     const index = month.month - 1;

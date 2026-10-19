@@ -6,7 +6,7 @@ import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, 
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
 import { parseBudgetBuffer } from "@/lib/budget/parser";
-import { buildBudgetCategorySummary, buildCashForecast, buildProjectedResult, buildUnbudgetedAccountSummary, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
+import { buildBudgetPeriodization, buildCashForecast, buildProjectedResult, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
 import type { AccountingDataset, BudgetDataset } from "@/lib/sie/types";
 import styles from "./page.module.css";
 
@@ -41,11 +41,15 @@ export default function OverviewPage() {
   const projectedResult = buildProjectedResult(dataset, year, "latestDate");
   const categorySummaries = useMemo(() => {
     if (!budget) return [];
-    const summaries = buildBudgetCategorySummary(dataset, budget, categories);
-    const unbudgeted = buildUnbudgetedAccountSummary(dataset, budget);
-    return unbudgeted.length ? [...summaries, { id: "unbudgeted", label: "Konton utan budget", budget: 0, actual: unbudgeted.reduce((sum, account) => sum + account.actual, 0), variance: unbudgeted.reduce((sum, account) => sum + account.variance, 0) }] : summaries;
+    const report = buildBudgetPeriodization(dataset, budget, categories, "history");
+    const visibleMonths = report.months.slice(0, report.latestMonth || 12);
+    return report.categories.map((category) => {
+      const budgetAmount = visibleMonths.reduce((sum, month) => sum + (category.periodized[month.month - 1] ?? 0), 0);
+      const actualAmount = visibleMonths.reduce((sum, month) => sum + (category.actual[month.month - 1] ?? 0), 0);
+      return { id: category.id, label: category.label, budget: budgetAmount, actual: actualAmount, variance: actualAmount - budgetAmount };
+    }).filter((category) => category.budget !== 0 || category.actual !== 0);
   }, [dataset, budget, categories]);
-  const budgetTotals = useMemo(() => budget ? buildBudgetCategorySummary(dataset, budget, categories).reduce((sum, category) => ({ budget: sum.budget + category.budget, actual: sum.actual + category.actual, variance: sum.variance + category.variance }), { budget: 0, actual: 0, variance: 0 }) : undefined, [dataset, budget, categories]);
+  const budgetTotals = useMemo(() => categorySummaries.length ? categorySummaries.reduce((sum, category) => ({ budget: sum.budget + category.budget, actual: sum.actual + category.actual, variance: sum.variance + category.variance }), { budget: 0, actual: 0, variance: 0 }) : undefined, [categorySummaries]);
   const maxVariance = Math.max(...categorySummaries.map((category) => Math.abs(category.variance)), Math.abs(budgetTotals?.variance ?? 0), 1);
   const latestDate = dataset.latestVoucherDate;
   const cashForecast = buildCashForecast(dataset, year, "latestDate");
@@ -77,8 +81,8 @@ export default function OverviewPage() {
         {!files.length ? <div className={styles.emptyState}><BarChart3 size={32} aria-hidden="true" /><h2>Översikten fylls när du laddar upp underlag</h2><p>Ladda upp SIE4-filer och gärna resultatrapporten med budget på sidan Filer.</p></div> : (
           <>
             <section className={styles.dashboardHero} aria-label="Viktigaste ekonomiska nyckeltalen">
-              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Prognostiserat saldo 31 december minus saldo 1 januari</small><Link href="/reports/liquidity">Visa likviditetsprognos</Link></article>
               <article className={styles.dashboardBudgetCard}><span>Utfall mot budget</span><strong className={resultClass(budgetTotals?.variance ?? 0)}>{budgetTotals ? formatThousands(budgetTotals.variance) : "saknas"}</strong><small>{budgetTotals ? `Utfall ${formatThousands(budgetTotals.actual)} mot budget ${formatThousands(budgetTotals.budget)}` : "Ladda upp en .xls-budget på sidan Filer"}</small><Link href="/reports/budget">Visa budgetuppföljning</Link></article>
+              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Prognostiserat saldo 31 december minus saldo 1 januari</small><Link href="/reports/liquidity">Visa likviditetsprognos</Link></article>
             </section>
 
             <section className={styles.kpis} aria-label="Övriga nyckeltal">
@@ -89,7 +93,7 @@ export default function OverviewPage() {
             </section>
 
             <article className={`${styles.panel} ${styles.dashboardBudgetPanel}`}>
-              <div className={`${styles.panelHeader} ${styles.dashboardPanelHeader}`}><div><span>Budgetuppföljning</span><h2>Vad avviker mest mot budget?</h2></div><Link className={styles.panelLink} href="/reports/budget">Öppna hela rapporten</Link></div>
+              <div className={`${styles.panelHeader} ${styles.dashboardPanelHeader}`}><div><span>Periodiserad budget t.o.m. {latestDate ?? "senaste transaktion"}</span><h2>Vad avviker mest mot budget?</h2></div><Link className={styles.panelLink} href="/reports/budget">Öppna hela rapporten</Link></div>
               {!budget ? <p className={`${styles.copy} ${styles.dashboardLead}`}>Ladda upp resultatrapporten i `.xls`-format för att se kategoriavvikelser här.</p> : <>
                 <p className={`${styles.copy} ${styles.dashboardLead}`}>Grönt betyder bättre resultat än budget. Kostnader är negativa, så en mindre kostnad ger en positiv avvikelse.</p>
                 <div className={styles.budgetVarianceChart} aria-label="Avvikelse mot budget per kategori">
