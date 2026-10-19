@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Bot, CalendarRange, FileDown, FileUp, Landmark, LineChart, Plus, Settings2, Trash2, WalletCards } from "lucide-react";
+import { BarChart3, Bot, FileDown, FileUp, Landmark, LineChart, Plus, Settings2, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { LogoutLink } from "@/app/logout-link";
 import { useUploads } from "@/app/upload-context";
@@ -183,11 +183,8 @@ export default function CategoryEditorPage() {
         <div className={styles.brand}><Landmark size={26} aria-hidden="true" /><div><strong>Kronängs IF</strong><span>Styrelserapport</span></div></div>
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
-          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</Link>
-          <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
-          <Link href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</Link>
           <Link href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
@@ -206,7 +203,7 @@ export default function CategoryEditorPage() {
         <p className={styles.copy}>Kollapsade kategorier visar namn, antal konton och totalen från senaste årets bokföring. Kontoändringar sparas när du klickar. Ändra ett kategorinamn och klicka sedan på Spara kategori.</p>
 
         <section className={styles.categoryFileCard} aria-label="Kategori-fil">
-          <div><FileDown size={22} aria-hidden="true" /><span><strong>categories.json</strong><small>Den sparade kategorifilen för den här workspacen</small></span></div>
+          <div><FileDown size={22} aria-hidden="true" /><span><strong>Kategoriinställningar</strong><small>Ladda ner eller återanvänd arbetsytans kontogruppering</small></span></div>
           <div className={styles.categoryFileActions}><a className={styles.secondaryButton} href="/api/files/categories.json" download="categories.json"><FileDown size={16} aria-hidden="true" />Ladda ner</a><label className={styles.secondaryButton}><FileUp size={16} aria-hidden="true" />Ladda upp<input type="file" accept=".json,application/json" onChange={(event) => { void importCategoryFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} /></label><button className={styles.dangerButton} onClick={() => { void deleteCategoryFile(); }} type="button" disabled={saving}><Trash2 size={16} aria-hidden="true" />Ta bort</button></div>
         </section>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildResultForecast } from "./result-forecast";
+import { buildBudgetResultCurve, buildPreviousYearResultCurve, buildResultForecast } from "./result-forecast";
 import { buildResultReport } from "./result";
 import type { AccountingDataset, Voucher } from "../sie/types";
 
@@ -10,6 +10,37 @@ const data: AccountingDataset = {
 };
 
 describe("resultatprognos", () => {
+  it("börjar årets utfall, budget och föregående år vid noll den första januari", () => {
+    const actual = buildResultForecast(data, 2026).actualPoints;
+    const budget = buildBudgetResultCurve(Array(12).fill(100), 2026, "20261019");
+    const previous = buildPreviousYearResultCurve(data, 2026, "20261019", ["3055", "7110"]);
+    expect(actual[0]).toEqual({ month: 0, amount: 0, date: "20260101" });
+    expect(budget[0]).toEqual(actual[0]);
+    expect(previous[0]).toEqual({ month: 0, amount: 0, date: "20250101" });
+    expect(actual[1].amount).toBe(1000);
+    expect(budget.at(-1)?.amount).toBe(1200);
+  });
+  it("visar samma datum i jämförelsekurvan och bevarar avståndet till prognosen därefter", () => {
+    const accounts = ["3055", "7110"];
+    const forecast = buildResultForecast(data, 2026, "20261019", accounts);
+    const comparison = buildPreviousYearResultCurve(data, 2026, "20261019", accounts);
+    const cutoffPoint = comparison.find((point) => point.date === "20251019")!;
+    expect(cutoffPoint.month).toBeCloseTo(9 + 19 / 31);
+    expect(cutoffPoint.amount).toBe(800);
+    expect(comparison.find((point) => point.month === 10)?.amount).toBe(1000);
+    const difference = forecast.actualPoints.at(-1)!.amount - cutoffPoint.amount;
+    for (const point of forecast.forecastPoints.slice(1)) {
+      expect(point.amount - comparison.find((reference) => reference.month === point.month)!.amount).toBeCloseTo(difference, 8);
+    }
+  });
+  it("visar alltid jämförelseåret till december och behåller punkten vid prognosstarten", () => {
+    const comparison = buildPreviousYearResultCurve(data, 2026, "20261019", ["3055"]);
+    expect(comparison.find((point) => point.date === "20251019")?.month).toBeCloseTo(9 + 19 / 31);
+    expect(comparison.find((point) => point.date === "20251019")?.amount).toBe(800);
+    expect(comparison.at(-1)?.month).toBe(12);
+    expect(comparison.at(-1)?.amount).toBe(1000);
+    expect(comparison.some((point) => point.month === 11)).toBe(true);
+  });
   it("lägger bara till föregående års transaktioner efter samma datum och exkluderar balanskonton", () => {
     const forecast = buildResultForecast(data, 2026);
     expect(forecast.actualPoints.at(-1)?.amount).toBe(600);
@@ -22,7 +53,7 @@ describe("resultatprognos", () => {
     expect(buildResultForecast(data, 2026, undefined, ["3055"]).projectedResult).toBe(1200);
     const extra = { ...data, vouchers: [...data.vouchers, voucher("20251215", "7830", 50)] };
     const groups = buildResultReport(extra, undefined, 2026, "20261019", "budget");
-    expect(groups.find((group) => group.id === "depreciation")?.accounts[0].account).toBe("7830");
+    expect(groups.flatMap((group) => group.accounts).some((row) => row.account === "7830")).toBe(true);
     expect(buildResultForecast(extra, 2026, undefined, ["7830"]).projectedResult).toBe(-50);
     expect(buildResultForecast(data, 2026, undefined, []).projectedResult).toBe(0);
   });

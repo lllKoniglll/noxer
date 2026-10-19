@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
+import { BarChart3, Bot, FileUp, Landmark, LineChart, Settings2 } from "lucide-react";
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
-import { parseBudgetBuffer } from "@/lib/budget/parser";
-import { buildBudgetPeriodization, buildCashForecast, buildProjectedResult, emptyAccountingDataset, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
-import type { AccountingDataset, BudgetDataset } from "@/lib/sie/types";
+import { ResultComparisonChart } from "@/app/result-comparison-chart";
+import { buildCashForecast, emptyAccountingDataset, formatSieDate, formatThousands, loadAccountingDataset } from "@/lib/reports/accounting";
+import { buildResultReport } from "@/lib/reports/result";
+import { buildPreviousYearResultCurve, buildResultForecast } from "@/lib/reports/result-forecast";
+import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "./page.module.css";
 
 function resultClass(value: number): string | undefined {
@@ -19,41 +21,25 @@ function resultClass(value: number): string | undefined {
 export default function OverviewPage() {
   const { files, categories } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
-  const [budget, setBudget] = useState<BudgetDataset | undefined>();
 
   useEffect(() => { void loadAccountingDataset(files).then(setDataset); }, [files]);
-  useEffect(() => {
-    let active = true;
-    const budgetFile = files.filter((file) => file.name.toLowerCase().endsWith(".xls")).at(-1);
-    if (!budgetFile) { setBudget(undefined); return () => { active = false; }; }
-    void budgetFile.arrayBuffer().then((buffer) => {
-      try {
-        const parsed = parseBudgetBuffer(new Uint8Array(buffer), budgetFile.name);
-        if (active) setBudget(parsed);
-      } catch {
-        if (active) setBudget(undefined);
-      }
-    });
-    return () => { active = false; };
-  }, [files]);
-
-  const year = budget?.year ?? (Number(dataset.latestVoucherDate?.slice(0, 4)) || new Date().getFullYear());
-  const projectedResult = buildProjectedResult(dataset, year, "latestDate");
-  const categorySummaries = useMemo(() => {
-    if (!budget) return [];
-    const report = buildBudgetPeriodization(dataset, budget, categories, "history");
-    const visibleMonths = report.months.slice(0, report.latestMonth || 12);
-    return report.categories.map((category) => {
-      const budgetAmount = visibleMonths.reduce((sum, month) => sum + (category.periodized[month.month - 1] ?? 0), 0);
-      const actualAmount = visibleMonths.reduce((sum, month) => sum + (category.actual[month.month - 1] ?? 0), 0);
-      return { id: category.id, label: category.label, budget: budgetAmount, actual: actualAmount, variance: actualAmount - budgetAmount };
-    }).filter((category) => category.budget !== 0 || category.actual !== 0);
-  }, [dataset, budget, categories]);
-  const budgetTotals = useMemo(() => categorySummaries.length ? categorySummaries.reduce((sum, category) => ({ budget: sum.budget + category.budget, actual: sum.actual + category.actual, variance: sum.variance + category.variance }), { budget: 0, actual: 0, variance: 0 }) : undefined, [categorySummaries]);
-  const maxVariance = Math.max(...categorySummaries.map((category) => Math.abs(category.variance)), Math.abs(budgetTotals?.variance ?? 0), 1);
-  const latestDate = dataset.latestVoucherDate;
+  const year = Number(dataset.latestVoucherDate?.slice(0, 4)) || new Date().getFullYear();
+  const resultForecast = buildResultForecast(dataset, year);
+  const projectedResult = resultForecast.projectedResult;
+  const cutoff = resultForecast.cutoff ?? `${year}1231`;
+  const previousYearCurve = useMemo(() => {
+    if (!resultForecast.hasHistory) return [];
+    const accounts = [...new Set(dataset.vouchers.flatMap((voucher) => voucher.transactions.map((transaction) => transaction.account)))];
+    return buildPreviousYearResultCurve(dataset, year, cutoff, accounts);
+  }, [dataset, year, cutoff, resultForecast.hasHistory]);
+  const actualResult = resultForecast.cutoff ? resultForecast.actualPoints.at(-1)?.amount ?? null : null;
+  const categorySummaries = useMemo(() => buildResultReport(dataset, undefined, year, cutoff, "previousPeriod", categories, categories)
+      .filter((category) => category.comparison !== 0 || category.actual !== 0), [dataset, year, cutoff, categories]);
+  const totalVariance = categorySummaries.reduce((sum, category) => sum + category.variance, 0);
+  const maxVariance = Math.max(...categorySummaries.map((category) => Math.abs(category.variance)), Math.abs(totalVariance), 1);
+  const latestDate = resultForecast.cutoff;
   const cashForecast = buildCashForecast(dataset, year, "latestDate");
-  const currentCash = [...cashForecast].reverse().find((point) => point.actual !== null)?.actual ?? 0;
+  const currentCash = [...cashForecast].reverse().find((point) => point.actual !== null)?.actual ?? null;
 
   return (
     <main className={styles.shell}>
@@ -61,11 +47,8 @@ export default function OverviewPage() {
         <div className={styles.brand}><Landmark size={26} aria-hidden="true" /><div><strong>Kronängs IF</strong><span>Styrelserapport</span></div></div>
         <nav className={styles.nav}>
           <Link className={styles.active} href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
-          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</Link>
-          <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
-          <Link href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</Link>
           <Link href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
@@ -76,30 +59,56 @@ export default function OverviewPage() {
 
       <section className={styles.workspace}>
         <header className={styles.topbar}>
-          <div><p>{dataset.organizationName}</p><h1>Ekonomisk översikt {year}</h1><span className={styles.fileStatus}>{latestDate ? `Utfall t.o.m. ${latestDate}` : "Ladda upp underlag på sidan Filer"}</span></div>
+          <div><p>{dataset.organizationName}</p><h1>Ekonomisk översikt {year}</h1><span className={styles.fileStatus}>Pengarna som finns nu, resultatet hittills och utsikten för hela året.</span></div>
+          <div className={styles.overviewDate}><span>Senaste bokföringsdatum</span>{latestDate ? <time dateTime={formatSieDate(latestDate)}>{formatSieDate(latestDate)}</time> : <strong>Underlag saknas</strong>}</div>
         </header>
 
         {!files.length ? <div className={styles.emptyState}><BarChart3 size={32} aria-hidden="true" /><h2>Översikten fylls när du laddar upp underlag</h2><p>Ladda upp SIE4-filer och gärna resultatrapporten med budget på sidan Filer.</p></div> : (
           <>
-            <section className={styles.dashboardHero} aria-label="Viktigaste ekonomiska nyckeltalen">
-              <article className={styles.dashboardBudgetCard}><span>Utfall mot budget</span><strong className={resultClass(budgetTotals?.variance ?? 0)}>{budgetTotals ? formatThousands(budgetTotals.variance) : "saknas"}</strong><small>{budgetTotals ? "Bokfört resultat minus periodiserad budget för samma bokföringsmånader" : "Ladda upp en .xls-budget på sidan Filer"}</small><Link href="/reports/budget">Visa budgetuppföljning</Link></article>
-              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Beräknat saldo vid årsslut minus ingående saldo</small><Link href="/reports/liquidity">Visa likviditetsprognos</Link></article>
+            <section className={styles.overviewSummary} aria-label="Ekonomin i korthet">
+              <article>
+                <span className={styles.overviewEyebrow}>Bokfört saldo</span>
+                <h2>Bank och kassa</h2>
+                <strong>{currentCash === null ? "saknas" : formatThousands(currentCash)}</strong>
+                <p>Pengarna på bank- och kassakonton. Det är inte samma sak som årets resultat.</p>
+                <Link className={styles.panelLink} href="/reports/liquidity">Se likviditeten →</Link>
+              </article>
+              <article>
+                <span className={styles.overviewEyebrow}>Bokfört hittills</span>
+                <h2>Årets resultat</h2>
+                <strong className={actualResult === null ? undefined : resultClass(actualResult)}>{actualResult === null ? "saknas" : formatThousands(actualResult)}</strong>
+                <p>Intäkter minus kostnader från årets början till senaste bokföringsdatum.</p>
+                <Link className={styles.panelLink} href="/reports/result">Se resultatrapporten →</Link>
+              </article>
+              <article className={styles.overviewForecastCard}>
+                <span className={styles.overviewEyebrow}>Beräknat för hela året</span>
+                <h2>Prognostiserat resultat</h2>
+                <strong className={projectedResult === null ? undefined : resultClass(projectedResult)}>{projectedResult === null ? "saknas" : formatThousands(projectedResult)}</strong>
+                <p>Bokfört resultat plus föregående års intäkter och kostnader för resten av året. En uppskattning, inte ett färdigt resultat.</p>
+              </article>
             </section>
 
-            <section className={styles.kpis} aria-label="Övriga nyckeltal">
-              <article><span>Senast faktiskt saldo</span><strong>{formatThousands(currentCash)}</strong><small>Bank- och kassakonton</small></article>
-              <article><span>Senaste utfall</span><strong>{latestDate ?? "saknas"}</strong><small>Senaste bokförda datum</small></article>
-              <article><span>Underlag</span><strong>{files.length}</strong><small>Inlästa filer</small></article>
-              <article><span>Budget</span><strong>{budget ? budget.year : "saknas"}</strong><small>{budget ? `${budget.rows.length} budgeterade konton` : "Ingen budgetfil"}</small></article>
-            </section>
+            <article className={`${styles.panel} ${styles.overviewChart}`} aria-label="Resultat och prognos">
+              <div className={styles.panelHeader}><div><span>Från bokfört utfall till helårsprognos</span><h2>Resultat och prognos jämfört med föregående år</h2></div><Link className={styles.panelLink} href="/reports/result?comparison=previousPeriod">Utforska resultatet →</Link></div>
+              <p className={styles.chartExplanation}>Kurvan visar intäkter minus kostnader, summerat från årets början — inte saldot på banken. Heldragen linje är bokfört utfall, streckad linje är prognos.</p>
+              <div className={styles.periodizationLegend}>
+                <span><i className={styles.resultActualSwatch} /> Faktiskt resultat – heldragen lila</span>
+                <span><i className={styles.resultForecastSwatch} /> Prognos – streckad lila</span>
+                {previousYearCurve.length ? <span><i className={styles.resultReferenceSwatch} /> Föregående år – långstreckad blå</span> : null}
+              </div>
+              <ResultComparisonChart reference={previousYearCurve} referenceLabel="Föregående år" referenceYear={year - 1} year={year} periodEnd={cutoff} actual={resultForecast.actualPoints} forecast={resultForecast.forecastPoints} shade />
+              {previousYearCurve.length ? <p className={styles.chartExplanation}>Den blå kurvan visar föregående års resultat för hela året. Ytan är grön när årets bokförda resultat är högre och röd när det är lägre. Prognosen skuggas inte.</p> : <p className={styles.chartExplanation}>Ladda upp föregående års bokföringsunderlag för att visa jämförelsekurvan.</p>}
+              <p className={styles.chartExplanation}>Datumlinjen markerar var bokfört utfall slutar och prognosen tar vid. Prognosen bygger på föregående års intäkter och kostnader för återstoden av året. För pekaren över en punkt eller välj den för att se beloppet.</p>
+              {projectedResult === null ? <p role="status">Prognos saknas: ladda upp årets och föregående års SIE-underlag.</p> : null}
+            </article>
 
             <article className={`${styles.panel} ${styles.dashboardBudgetPanel}`}>
-              <div className={`${styles.panelHeader} ${styles.dashboardPanelHeader}`}><div><span>Periodiserad budget t.o.m. {latestDate ?? "senaste transaktion"}</span><h2>Vad avviker mest mot budget?</h2></div><Link className={styles.panelLink} href="/reports/budget">Öppna hela rapporten</Link></div>
-              {!budget ? <p className={`${styles.copy} ${styles.dashboardLead}`}>Ladda upp resultatrapporten i `.xls`-format för att se kategoriavvikelser här.</p> : <>
-                <p className={`${styles.copy} ${styles.dashboardLead}`}>Grönt betyder bättre resultat än budget. Kostnader är negativa, så en mindre kostnad ger en positiv avvikelse.</p>
-                <div className={styles.budgetVarianceChart} aria-label="Avvikelse mot budget per kategori">
-                  {categorySummaries.map((category) => <div className={styles.budgetVarianceRow} data-tooltip={`${category.label}: ${formatThousands(category.variance)}`} title={`${category.label}: ${formatThousands(category.variance)}`} key={category.id}><strong>{category.label}</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={category.variance >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(category.variance) / maxVariance * 50, 1)}%` }} /></div><span className={category.variance >= 0 ? styles.betterText : styles.worseText}>{formatThousands(category.variance)}</span></div>)}
-                  <div className={`${styles.budgetVarianceRow} ${styles.categoryChangeTotalRow}`}><strong>Resultat</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={(budgetTotals?.variance ?? 0) >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(budgetTotals?.variance ?? 0) / maxVariance * 50, 1)}%` }} /></div><span className={(budgetTotals?.variance ?? 0) >= 0 ? styles.betterText : styles.worseText}>{formatThousands(budgetTotals?.variance ?? 0)}</span></div>
+              <div className={`${styles.panelHeader} ${styles.dashboardPanelHeader}`}><div><span>Samma period föregående år</span><h2>Hur har kategoriernas resultat förändrats?</h2></div><Link className={styles.panelLink} href="/reports/result?comparison=previousPeriod&grouping=categories">Jämför med föregående år →</Link></div>
+              {!resultForecast.hasHistory || !resultForecast.cutoff ? <p className={`${styles.copy} ${styles.dashboardLead}`}>Ladda upp årets och föregående års bokföringsunderlag för att jämföra kategoriernas resultat för samma period.</p> : <>
+                <p className={`${styles.copy} ${styles.dashboardLead}`}>Skillnad mot samma period föregående år, till senaste bokföringsdatum. Grönt = bättre resultat · Rött = sämre resultat.</p>
+                <div className={styles.budgetVarianceChart} aria-label="Skillnad mot samma period föregående år per kategori">
+                  {categorySummaries.map((category) => <div className={styles.budgetVarianceRow} key={category.id}><strong>{category.label}</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={category.variance >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(category.variance) / maxVariance * 50, 1)}%` }} /></div><span className={category.variance >= 0 ? styles.betterText : styles.worseText}>{formatThousands(category.variance)}</span></div>)}
+                  <div className={`${styles.budgetVarianceRow} ${styles.categoryChangeTotalRow}`}><strong>Total resultatskillnad</strong><div className={styles.categoryChangeTrack}><span className={styles.categoryChangeBaseline} /><span className={totalVariance >= 0 ? styles.categoryChangePositive : styles.categoryChangeNegative} style={{ width: `${Math.max(Math.abs(totalVariance) / maxVariance * 50, 1)}%` }} /></div><span className={totalVariance >= 0 ? styles.betterText : styles.worseText}>{formatThousands(totalVariance)}</span></div>
                 </div>
               </>}
             </article>

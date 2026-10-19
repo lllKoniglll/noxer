@@ -208,6 +208,52 @@
 .fileCard dt { font-size: .72rem; }
 .fileCard dd { color: var(--ink); font-size: .84rem; margin: 0; }
 
+.overviewDate {
+  display: grid;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.overviewDate span { color: var(--muted); font-size: .78rem; }
+.overviewDate time, .overviewDate strong { font-size: .95rem; font-weight: 700; }
+.overviewSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+.overviewSummary article {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.overviewSummary .overviewEyebrow { color: var(--muted); font-size: .78rem; font-weight: 600; }
+.overviewSummary h2 { margin: 6px 0 16px; font-size: 1rem; }
+.overviewSummary strong { font-size: 2rem; line-height: 1.15; }
+.overviewSummary p { margin: 14px 0 18px; color: var(--muted); font-size: .85rem; line-height: 1.55; }
+.overviewSummary a { margin-top: auto; }
+.overviewSummary .overviewForecastCard, .kpis .overviewForecastCard { background: #f6f3fc; border-color: #d9cfee; border-top: 3px dashed #8567b7; }
+.overviewSummary .overviewForecastCard { padding-top: 20px; }
+.kpis .overviewForecastCard { padding-top: 16px; }
+.kpis.resultKpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.overviewChart { padding: 24px; }
+@media (max-width: 1050px) {
+  .overviewSummary { grid-template-columns: 1fr; }
+  .overviewSummary article { padding: 20px; }
+}
+@media (max-width: 600px) {
+  .overviewChart { padding: 16px; }
+  .overviewChart .panelHeader, .dashboardPanelHeader { flex-direction: column; align-items: flex-start; }
+}
+
 .dashboardHero {
   display: grid;
   gap: 16px;
@@ -247,7 +293,7 @@
 .dashboardPanelHeader > div > span { font-size: .82rem; letter-spacing: .01em; }
 .dashboardPanelHeader h2 { font-size: 1.45rem; line-height: 1.2; margin: 0; }
 .dashboardPanelHeader .panelLink { font-size: .9rem; padding-bottom: 2px; white-space: nowrap; }
-.dashboardLead { line-height: 1.55; margin: 0 0 24px; max-width: 760px; }
+.dashboardLead { line-height: 1.55; margin: 0 0 20px; }
 
 @media (max-width: 760px) {
   .dashboardHero { grid-template-columns: 1fr; }
@@ -335,6 +381,21 @@
 .periodizationChartSelect select, .periodizationChartSelect input[type="date"] { background: #f9faf8; border: 1px solid var(--line); border-radius: 8px; min-height: 38px; padding: 0 10px; }
 
 .resultControls { padding: 18px; }
+.resultMainChoices { display: flex; flex-wrap: wrap; align-items: end; gap: 18px 28px; }
+.resultComparisonChoice { border: 0; margin: 0; padding: 0; }
+.resultComparisonChoice legend { color: var(--muted); font-size: .8rem; font-weight: 750; margin-bottom: 8px; }
+.resultComparisonChoice > div { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-muted); }
+.resultComparisonChoice label { position: relative; cursor: pointer; }
+.resultComparisonChoice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.resultComparisonChoice span { display: block; border-radius: 6px; padding: 10px 18px; font-weight: 650; }
+.resultComparisonChoice input:checked + span { background: var(--accent); color: #fff; }
+.resultComparisonChoice input:focus-visible + span { outline: 2px solid var(--ink); outline-offset: 2px; }
+.resultContext { color: var(--muted); font-size: .85rem; margin: 12px 0; }
+.resultAdvanced, .resultExplanation { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; }
+.resultAdvanced summary, .resultExplanation summary { cursor: pointer; font-weight: 650; font-size: .85rem; }
+.resultAdvanced > .periodizationChartControls { margin-top: 16px; }
+.resultFullYear { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: .85rem; }
+.resultReset { margin-top: 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-muted); color: var(--ink); cursor: pointer; padding: 8px 12px; }
 .resultControls .periodizationChartControls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: end; }
 .resultControls .periodizationChartSelect { min-width: 0; max-width: none; }
 .resultControls .periodizationChartSelect select,
@@ -347,19 +408,40 @@
 .resultFilters > div { display: flex; flex-wrap: wrap; gap: 12px 20px; padding-top: 14px; }
 .resultFilters label { display: flex; align-items: center; gap: 6px; font-size: .85rem; }
 .resultTableScroll { overflow-x: auto; }
-.resultTable { width: 100%; border-collapse: collapse; font-size: .85rem; }
-.resultTable th, .resultTable td { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.resultTable { width: 100%; border-collapse: collapse; font-size: 1.1rem; line-height: 1.4; }
+.resultTable th, .resultTable td { padding: .45em .5em; border-bottom: 1px solid var(--line); }
+.resultTable .accountDetailToggle, .resultTable .transactionDetails table { font-size: inherit; }
+.resultTable .categoryChangeTrack { height: 1.75em; }
+.resultTable .categoryChangePositive, .resultTable .categoryChangeNegative { height: 1.15em; top: .3em; }
 .resultTable th { text-align: left; }
-.resultTable td, .resultTable thead th:not(:first-child) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.resultTable th:first-child { min-width: 260px; }
-.resultTable thead { color: var(--muted); }
-.resultGroup { font-weight: 700; }
-.resultGroup th, .resultGroup td { border-bottom: 0; padding-top: 6px; padding-bottom: 6px; }
-.resultGroup .accountDetailToggle { font-size: .82rem; }
-.resultBarCell { min-width: 180px; width: 100%; }
+.resultTable > :is(thead, tbody, tfoot) > tr > td, .resultTable > thead > tr > th:not(:first-child) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.resultTable > :is(thead, tbody, tfoot) > tr > th:first-child { min-width: 260px; }
+.resultTable > tbody > tr > td[colspan] { text-align: left; white-space: normal; }
+.resultTable .transactionDetails table { min-width: 0; }
+.resultTable .transactionDetails th:nth-child(-n + 3), .resultTable .transactionDetails td:nth-child(-n + 3) { text-align: left; white-space: normal; }
+.resultTable > thead { color: var(--muted); background: #f5f7f5; }
+.resultTable > thead > tr > th { padding-top: .65em; padding-bottom: .65em; }
+.resultGroup { font-weight: 650; }
+.resultGroup { cursor: pointer; }
+.resultGroup .accountDetailToggle { white-space: nowrap; gap: .55em; }
+.resultGroup .accountDetailToggle svg { width: 1.3em; height: 1.3em; flex-shrink: 0; stroke-width: 2.5; color: var(--accent); }
+.resultGroupSelected { background: #e5eee8; }
+.resultGroupSelected > th { box-shadow: inset 3px 0 var(--accent); }
+.resultGroup:hover { background: #f0f5f1; }
+.resultChartScope { color: var(--accent); font-size: .85rem; margin: 12px 0; }
+.resultGroup th, .resultGroup td { padding-top: .5em; padding-bottom: .5em; }
+.resultBarCell { min-width: 120px; width: 100%; }
+.resultTable .resultAccountBar .categoryChangeTrack { height: 1em; background: #eef2ef; }
+.resultTable .resultAccountBar .categoryChangePositive, .resultTable .resultAccountBar .categoryChangeNegative { height: .5em; top: .25em; border-radius: 2px; }
 .resultGroup:hover .categoryChangeTrack { background: #e5eee8; }
-.resultTable th.resultAccount { padding-left: 35px; font-weight: 400; }
-.resultSubtotal, .resultTable tfoot { font-weight: 750; border-top: 2px solid var(--line); }
+.resultTable > tbody > tr:has(> th.resultAccount) { background: #f8faf8; font-weight: 400; }
+.resultTable th.resultAccount { padding-left: 2em; font-weight: 400; box-shadow: inset 3px 0 #dce6df; }
+.resultTable th.resultAccount .accountDetailToggle { gap: .55em; }
+.resultTable th.resultAccount svg { width: 1.1em; height: 1.1em; flex-shrink: 0; color: var(--muted); }
+.resultTable > tbody > .resultSubtotal { background: #edf1ee; font-weight: 750; border-top: 2px solid #c9d4cc; }
+.resultTable > tbody > .resultSubtotal > th, .resultTable > tbody > .resultSubtotal > td { padding-top: .65em; padding-bottom: .65em; }
+.resultTable > tfoot { background: #e2eee7; font-weight: 800; border-top: 3px double var(--accent); }
+.resultTable > tfoot > tr > th, .resultTable > tfoot > tr > td { padding-top: .8em; padding-bottom: .8em; border-bottom: 0; }
 .periodizationBudgetDot { background: #2866a6; }
 .chartExplanation { color: var(--muted); font-size: .85rem; line-height: 1.5; margin: 12px 0; }
 .periodizationActualDot { background: var(--forecast); }
@@ -386,19 +468,32 @@
 .periodizationSignedActualIncome { background: var(--forecast); bottom: 50%; left: 51%; }
 .periodizationSignedBudgetCost { background: var(--accent); left: 25%; top: 50%; }
 .periodizationSignedActualCost { background: var(--forecast); left: 51%; top: 50%; }
-.cumulativeChart { background: #f9faf8; border: 1px solid var(--line); border-radius: 8px; margin-top: 18px; padding: 10px; }
-.cumulativeChart svg { display: block; height: 230px; overflow: visible; width: 100%; }
+.cumulativeChart { background: #f9faf8; border: 1px solid var(--line); border-radius: 8px; margin-top: 18px; padding: 10px; position: relative; }
+.comparisonPeriodMarker { pointer-events: none; }
+.comparisonPeriodMarker line { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 3 4; }
+.comparisonPeriodMarker rect { fill: var(--ink); }
+.comparisonPeriodMarker text { fill: white; font-size: 12px; font-weight: 650; }
+.chartPointTarget { fill: transparent; cursor: pointer; }
+.chartPeriodPoint { stroke: #fff; stroke-width: 2; }
+.chartPointTarget:focus-visible { outline: none; stroke: var(--ink); stroke-width: 2; }
+.resultPointTooltip { position: absolute; z-index: 2; pointer-events: none; width: 240px; max-width: calc(100% - 40px); padding: 10px; border-radius: 7px; background: var(--ink); color: #fff; box-shadow: 0 3px 12px #0003; }
+.resultPointTooltip span, .resultPointTooltip strong, .resultPointTooltip small { display: block; }
+.resultPointTooltip span, .resultPointTooltip small { font-size: .78rem; }
+.resultPointTooltip strong { margin: 5px 0; font-size: .95rem; }
+.cumulativeChart svg { display: block; height: 280px; overflow: visible; width: 100%; }
 .cumulativeAxis { stroke: var(--muted); stroke-width: 1.5; }
 .cumulativeGridLine { stroke: var(--line); stroke-dasharray: 3 5; }
 .cumulativeZeroLine { stroke: var(--ink); stroke-width: 2.5; }
 .cumulativeValueLabel,
 .cumulativeZeroLabel { fill: var(--muted); font-size: 14px; }
 .cumulativeZeroLabel { fill: var(--ink); font-weight: 800; }
-.cumulativeBudgetLine { fill: none; stroke: #2866a6; stroke-width: 4; stroke-dasharray: 8 5; }
+.cumulativeBudgetLine { fill: none; stroke: #2866a6; stroke-width: 4; stroke-dasharray: 14 7; }
 .cumulativeActualLine { fill: none; stroke: var(--forecast); stroke-width: 4; }
 .cumulativeForecastLine { fill: none; stroke: var(--forecast); stroke-width: 4; stroke-dasharray: 8 5; }
 .cumulativeForecastPoint { fill: var(--panel); stroke: var(--forecast); stroke-width: 2; }
 .periodizationLegend i.resultForecastSwatch { background: transparent; border-radius: 0; border-top: 3px dashed var(--forecast); height: 0; width: 22px; }
+.periodizationLegend i.resultActualSwatch, .periodizationLegend i.resultReferenceSwatch { background: transparent; border-radius: 0; border-top: 3px solid var(--forecast); height: 0; width: 22px; }
+.periodizationLegend i.resultReferenceSwatch { border: 0; height: 3px; width: 35px; background: repeating-linear-gradient(to right, #2866a6 0 14px, transparent 14px 21px); }
 .cumulativeBudgetPoint { fill: #2866a6; }
 .cumulativeActualPoint { fill: var(--forecast); }
 .cumulativeFavorableArea { fill: rgba(24, 132, 92, .2); }
@@ -1731,6 +1826,7 @@ button.categoryChangeRow:hover .categoryChangeTrack {
   }
 
   .kpis,
+  .kpis.resultKpis,
   .grid,
   .chatLayout {
     grid-template-columns: 1fr;

@@ -141,6 +141,14 @@ export type BudgetPeriodizationReport = {
 
 export type BudgetPeriodizationMode = "straight" | "history";
 
+export function periodizedBudgetToDate(monthly: number[], cutoff: string): number {
+  const year = Number(cutoff.slice(0, 4));
+  const month = Number(cutoff.slice(4, 6));
+  const day = Number(cutoff.slice(6, 8));
+  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return monthly.slice(0, month - 1).reduce((sum, amount) => sum + amount, 0) + (monthly[month - 1] ?? 0) * day / days;
+}
+
 export type ComparisonMode = "fullYear" | "samePeriod";
 export type CashForecastMode = "latestDate" | "fullMonth";
 
@@ -195,14 +203,7 @@ export function comparisonModeLabel(comparisonMode: ComparisonMode): string {
 }
 
 export function formatSieDate(date: string): string {
-  const year = Number(date.slice(0, 4));
-  const month = Number(date.slice(4, 6));
-  const day = Number(date.slice(6, 8));
-  return new Intl.DateTimeFormat("sv-SE", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(Date.UTC(year, month - 1, day)));
+  return date.replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3");
 }
 
 function uniqueVouchers(vouchers: Voucher[]): Voucher[] {

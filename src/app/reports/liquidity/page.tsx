@@ -1,8 +1,7 @@
 "use client";
 
 import { Fragment, Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
+import { BarChart3, Bot, FileUp, Landmark, LineChart, Settings2 } from "lucide-react";
 import Link from "next/link";
 import {
   buildCashForecast,
@@ -14,9 +13,7 @@ import {
   getAvailableYears,
   loadAccountingDataset,
   emptyAccountingDataset,
-  type CashForecastMode,
-  formatMonth,
-  parseComparisonMode
+  type CashForecastMode
 } from "@/lib/reports/accounting";
 import { useUploads } from "@/app/upload-context";
 import { LogoutLink } from "@/app/logout-link";
@@ -24,7 +21,6 @@ import type { AccountingDataset } from "@/lib/sie/types";
 import styles from "../../page.module.css";
 
 function LiquidityReportPageContent() {
-  const params = useSearchParams();
   const { files, categories } = useUploads();
   const [dataset, setDataset] = useState<AccountingDataset>(() => emptyAccountingDataset());
   const [forecastMode, setForecastMode] = useState<CashForecastMode>("latestDate");
@@ -32,8 +28,6 @@ function LiquidityReportPageContent() {
   const [expandedMonthCategory, setExpandedMonthCategory] = useState<string | null>(null);
   const [expandedMonthCategoryAccount, setExpandedMonthCategoryAccount] = useState<string | null>(null);
   useEffect(() => { loadAccountingDataset(files).then(setDataset); }, [files]);
-  const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
-  const comparisonQuery = `?comparison=${comparisonMode}`;
   const years = getAvailableYears(dataset);
   const selectedYear = years.at(-1) ?? new Date().getFullYear();
   const cashForecast = buildCashForecast(dataset, selectedYear, forecastMode);
@@ -43,7 +37,6 @@ function LiquidityReportPageContent() {
   const forecastEnd = [...cashForecast].reverse().find((point) => point.forecast !== null)?.forecast;
   const maxCash = Math.max(openingBalance, ...cashForecast.flatMap((point) => [point.actual ?? 0, point.forecast ?? 0]), 1);
   const actualMonths = cashForecast.filter((point) => point.actual !== null).length;
-  const latestActualMonth = [...cashForecast].reverse().find((point) => point.actual !== null)?.label;
   const projectedResult = buildProjectedResult(dataset, selectedYear, forecastMode);
 
   if (!files.length) {
@@ -62,19 +55,10 @@ function LiquidityReportPageContent() {
         </div>
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
-          <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
           <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link className={styles.active} href="/reports/liquidity">
             <LineChart size={18} aria-hidden="true" />
             Likviditet
-          </Link>
-          <Link href={`/reports/categories${comparisonQuery}`}>
-            <CalendarRange size={18} aria-hidden="true" />
-            Kategorier
-          </Link>
-          <Link href={`/reports/monthly${comparisonQuery}`}>
-            <BarChart3 size={18} aria-hidden="true" />
-            Månadsöversikt
           </Link>
           <Link href="/reports/accounts">
             <BarChart3 size={18} aria-hidden="true" />
@@ -96,14 +80,14 @@ function LiquidityReportPageContent() {
             <p>{dataset.organizationName}</p>
             <h1>Likviditet och prognos {selectedYear}</h1>
             <span className={styles.fileStatus}>
-              Faktiskt till {dataset.latestVoucherDate ?? "saknas"}, {forecastMode === "latestDate" ? "prognos från nästa dag" : "prognos från föregående hela månad"}
+              Bokförda bank- och kassasaldon med prognos för återstoden av året
             </span>
           </div>
           <div className={styles.actions}>
             <label className={styles.forecastControl}>
               <span>Prognos från</span>
               <select aria-label="Välj när prognosen ska börja" onChange={(event) => setForecastMode(event.target.value as CashForecastMode)} value={forecastMode}>
-                <option value="latestDate">Senaste datum ({dataset.latestVoucherDate ? `${formatMonth(Number(dataset.latestVoucherDate.slice(4, 6)))} ${dataset.latestVoucherDate.slice(6, 8)}` : "saknas"})</option>
+                <option value="latestDate">Senaste bokföringsdatum</option>
                 <option value="fullMonth">Föregående hela månad</option>
               </select>
             </label>
@@ -124,10 +108,10 @@ function LiquidityReportPageContent() {
           <article>
             <span>Faktisk period</span>
             <strong>{actualMonths}/12 mån</strong>
-            <small>Utfall t.o.m. {latestActualMonth ?? "saknas"}</small>
+            <small>Antal månader med bokfört utfall</small>
           </article>
           <article>
-            <span>Prognostiserat resultat</span>
+            <span>Prognostiserad kassaförändring</span>
             <strong>{formatThousands(projectedResult)}</strong>
             <small>Beräknat saldo vid årsslut minus ingående saldo</small>
           </article>

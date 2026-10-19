@@ -1,13 +1,13 @@
 import type { AccountingDataset, BudgetDataset } from "@/lib/sie/types";
 import { ACCOUNT_CATEGORIES, getAccountCategory, type AccountCategory } from "./categories";
-import { buildBudgetPeriodization } from "./accounting";
+import { buildBudgetPeriodization, periodizedBudgetToDate } from "./accounting";
 import resultGroups from "./result-groups.json";
-
 export const RESULT_GROUPS: AccountCategory[] = resultGroups;
-export type ResultComparison = "budget" | "previousPeriod" | "previousYear";
+export type ResultComparison = "budget" | "periodizedBudget" | "previousPeriod" | "previousYear";
 export type ResultAccount = { account: string; name: string; actual: number; comparison: number; variance: number; months: number[]; comparisonMonths: number[]; hasForecastActivity: boolean };
 
-export function buildResultReport(dataset: AccountingDataset, budget: BudgetDataset | undefined, year: number, cutoff: string, comparison: ResultComparison, categories: AccountCategory[] = RESULT_GROUPS, periodizationCategories: AccountCategory[] = ACCOUNT_CATEGORIES) {
+export function buildResultReport(dataset: AccountingDataset, budget: BudgetDataset | undefined, year: number, cutoff: string, comparison: ResultComparison, categories: AccountCategory[] = ACCOUNT_CATEGORIES, periodizationCategories: AccountCategory[] = categories) {
+  const isBudget = comparison === "budget" || comparison === "periodizedBudget";
   const latest = dataset.vouchers.filter((voucher) => voucher.date.startsWith(String(year))).map((voucher) => voucher.date).sort().at(-1);
   const forecastCutoff = latest && latest < cutoff ? latest : cutoff;
   const rows = new Map<string, ResultAccount>();
@@ -21,7 +21,7 @@ export function buildResultReport(dataset: AccountingDataset, budget: BudgetData
     const month = Number(voucher.date.slice(4, 6)) - 1;
     if (month < 0 || month > 11) continue;
     const actual = voucherYear === year && voucher.date <= cutoff;
-    const previous = comparison !== "budget" && voucherYear === year - 1 && (comparison === "previousYear" || voucher.date.slice(4) <= cutoff.slice(4));
+    const previous = !isBudget && voucherYear === year - 1 && (comparison === "previousYear" || voucher.date.slice(4) <= cutoff.slice(4));
     const forecast = voucherYear === year - 1 && voucher.date.slice(4) > forecastCutoff.slice(4);
     if (!actual && !previous && !forecast) continue;
     for (const transaction of voucher.transactions) {
@@ -32,7 +32,7 @@ export function buildResultReport(dataset: AccountingDataset, budget: BudgetData
       if (previous) { row.comparison -= transaction.amount; row.comparisonMonths[month] -= transaction.amount; }
     }
   }
-  if (comparison === "budget" && budget?.year === year) {
+  if (isBudget && budget?.year === year) {
     // Allocate using the budget page's categories, then regroup the accounts
     // for presentation. Changing report grouping must not change the curve.
     const allocation = buildBudgetPeriodization(dataset, budget, periodizationCategories, "history");
@@ -40,7 +40,6 @@ export function buildResultReport(dataset: AccountingDataset, budget: BudgetData
     for (const entry of budget.rows) {
       if (!/^[3-8]/.test(entry.account)) continue;
       const row = getRow(entry.account, entry.name);
-      row.comparison += entry.amount;
       const shares = sharesByCategory.get(getAccountCategory(entry.account, periodizationCategories).id)!;
       let allocated = 0;
       row.comparisonMonths = row.comparisonMonths.map((amount, month) => {
@@ -48,6 +47,9 @@ export function buildResultReport(dataset: AccountingDataset, budget: BudgetData
         allocated += monthlyBudget;
         return amount + monthlyBudget;
       });
+    }
+    for (const row of rows.values()) {
+      row.comparison = comparison === "periodizedBudget" ? periodizedBudgetToDate(row.comparisonMonths, cutoff) : row.comparisonMonths.reduce((sum, amount) => sum + amount, 0);
     }
   }
   for (const row of rows.values()) row.variance = row.actual - row.comparison;
@@ -60,4 +62,20 @@ export function buildResultReport(dataset: AccountingDataset, budget: BudgetData
     return { ...category, accounts, actual, comparison: reference, variance: actual - reference };
   }).filter((group) => group.accounts.length > 0);
   return groups;
+}
+
+export function buildResultAccountTransactions(dataset: AccountingDataset, account: string, year: number, cutoff: string, comparison: ResultComparison) {
+  return dataset.vouchers.flatMap((voucher) => {
+    const actual = voucher.date.startsWith(String(year)) && voucher.date <= cutoff;
+    const previous = (comparison === "previousPeriod" || comparison === "previousYear") && voucher.date.startsWith(String(year - 1)) && (comparison === "previousYear" || voucher.date.slice(4) <= cutoff.slice(4));
+    if (!actual && !previous) return [];
+    return voucher.transactions.flatMap((transaction, index) => transaction.account === account ? [{
+      id: `${voucher.sourceFile}:${voucher.date}:${voucher.series}:${voucher.number}:${index}`,
+      date: voucher.date,
+      voucher: `${voucher.series}${voucher.number}`,
+      text: transaction.text || voucher.text,
+      actual: actual ? -transaction.amount : null,
+      comparison: previous ? -transaction.amount : null
+    }] : []);
+  }).sort((left, right) => left.date.localeCompare(right.date) || left.voucher.localeCompare(right.voucher, "sv", { numeric: true }));
 }
