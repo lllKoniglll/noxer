@@ -9,16 +9,22 @@ workspace-grupp delar filerna; användare måste tillhöra exakt en grupp med
 prefixet `noxer-workspace-`. Backend väljer workspace från Authentik-headern,
 aldrig från en sökväg som skickas av webbläsaren.
 
-## Första installationen som `server`
+## Produktionskonto
+
+Noxers produktion ska alltid köras som macOS-användaren `rik`, med Docker
+under samma konto. Produktionscheckouten är `/Users/rik/server/stacks/noxer`.
+Kontot `server` används inte för Noxers produktion.
+
+## Första installationen som `rik`
 
 ```bash
-cd /Users/server/server/stacks
+cd /Users/rik/server/stacks
 git clone -b main git@github.com:lllKoniglll/noxer.git noxer
 cd noxer
 cp .env.example .env
 mkdir -p data
-# På macOS ska bind-mounten ägas av serverkontot, inte container-UID 10001.
-sudo chown -R server:staff data
+# På macOS ska bind-mounten ägas av rik, inte container-UID 10001.
+sudo chown -R rik:staff data
 sudo chmod -RN data
 sudo chmod -R u+rwX data
 ```
@@ -46,10 +52,10 @@ Ingen port ska öppnas i routern och ingen containerport ska bindas till
 ## Uppdatering
 
 ```bash
-cd /Users/server/server/stacks/noxer
+cd /Users/rik/server/stacks/noxer
 git pull --ff-only origin main
 # Kör inte chown till 10001 på Mac. deploy-server.sh kontrollerar att data
-# ägs av server innan containrarna startas.
+# ägs av rik innan containrarna startas.
 docker compose build
 docker compose up -d
 docker compose ps
@@ -57,10 +63,10 @@ docker compose logs --tail=100
 ```
 
 Det finns också ett deployskript som kör samma säkra uppdatering och kontroller
-att webbens health-endpoint svarar. Kör det som macOS-användaren `server`:
+att webbens health-endpoint svarar. Kör det som macOS-användaren `rik`:
 
 ```bash
-cd /Users/server/server/stacks/noxer
+cd /Users/rik/server/stacks/noxer
 bash scripts/deploy-server.sh
 ```
 
@@ -72,3 +78,7 @@ NOXER_DEPLOY_BRANCH=codex/monthly-account-comparison bash scripts/deploy-server.
 
 Skriptet använder `docker compose up -d --build`; `down` behövs inte och den
 centrala Caddy-, Cloudflare- eller Authentik-stacken ändras inte.
+
+Behåll befintlig datamount och eventuella lokala Compose-anpassningar. Ta en
+säkerhetskopia av produktionscheckoutens `data/` före uppdatering. Ta inte bort
+volymer eller produktionsdata vid deployment.

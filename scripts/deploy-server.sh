@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -eu
 
-if [ "$(id -un)" != "server" ]; then
-  echo "Detta skript ska köras som macOS-användaren server."
-  echo "Exempel: ssh server@<mac-mini> 'cd /Users/server/server/stacks/noxer && npm run deploy:server'"
+if [ "$(id -un)" != "rik" ]; then
+  echo "Detta skript ska köras som macOS-användaren rik."
+  echo "Exempel: ssh rik@<mac-mini> 'cd /Users/rik/server/stacks/noxer && npm run deploy:server'"
   exit 1
 fi
 
 DEPLOY_BRANCH="${NOXER_DEPLOY_BRANCH:-main}"
-DEPLOY_PATH="${NOXER_DEPLOY_PATH:-/Users/server/server/stacks/noxer}"
+DEPLOY_PATH="${NOXER_DEPLOY_PATH:-/Users/rik/server/stacks/noxer}"
 
 cd "$DEPLOY_PATH"
 git fetch origin
@@ -25,7 +25,7 @@ if [ ! -d "$DATA_PATH" ]; then
 fi
 
 # Docker Desktop on macOS uses the host account for bind-mount permissions.
-# Do not chown to the container UID here: server cannot change ownership to
+# Do not chown to the container UID here: rik cannot change ownership to
 # arbitrary numeric IDs and the resulting fakeowner mount is not writable.
 DATA_OWNER="$(stat -f '%Su' "$DATA_PATH")"
 if [ "$DATA_OWNER" != "$(id -un)" ]; then

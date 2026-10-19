@@ -27,10 +27,13 @@ finns i Noxers `DEPLOYMENT.md` och i Authentik-repots `AGENTS.md`/README.
 
 ## Produktionsserver
 
-Noxer körs på en Mac mini M4/ARM64 under det separata macOS-kontot `server`.
-`rik` används för utveckling och Codex; kör inte produktionscontainrar som
-`rik`. Deploymenten finns i `/Users/server/server/stacks/noxer/` och består av
+Noxer körs alltid på en Mac mini M4/ARM64 under macOS-kontot `rik`.
+`rik` används även för utveckling och Codex. Kör inte Noxers produktion under
+kontot `server`. Deploymenten finns i `/Users/rik/server/stacks/noxer/` och består av
 webb- och backend-containrar på det externa Docker-nätet `ai-network`.
+Produktionsdata ligger i deploymentens `data/` och ska bevaras vid uppdatering.
+Använd `scripts/deploy-server.sh` som `rik`; ändra inte datamount eller lokala
+Compose-anpassningar vid deployment.
 
 Webben publiceras endast lokalt på `127.0.0.1:8081`. Den befintliga Cloudflare
 Tunneln `mac-mini` går till Caddy på `127.0.0.1:8083`, där Authentik kontrollerar
