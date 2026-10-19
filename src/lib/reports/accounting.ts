@@ -1,4 +1,4 @@
-import { parseSieBuffer } from "@/lib/sie/parser";
+import { parseSieBuffer } from "../sie/parser";
 import type {
   AccountingDataset,
   Balance,
@@ -128,6 +128,7 @@ export type BudgetPeriodizationCategory = {
   label: string;
   budget: number;
   periodized: number[];
+  shares: number[];
   actual: number[];
 };
 
@@ -397,6 +398,7 @@ export function buildBudgetPeriodization(
       label: category.label,
       budget: roundSek(categoryBudget),
       periodized,
+      shares,
       actual: (actualByCategory.get(category.id) ?? Array(12).fill(0)).map(roundSek)
     };
   });

@@ -1,5 +1,7 @@
 "use client";
 
+import { ResultComparisonChart } from "@/app/result-comparison-chart";
+import { buildResultForecast } from "@/lib/reports/result-forecast";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { BarChart3, Bot, CalendarRange, ChevronRight, FileUp, Landmark, LineChart, Settings2, WalletCards } from "lucide-react";
 import Link from "next/link";
@@ -36,7 +38,6 @@ export default function BudgetAnnualPage() {
   const [chartCategory, setChartCategory] = useState("total");
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [expandedAccount, setExpandedAccount] = useState<string | null>(null);
-  const [hoveredCumulativePoint, setHoveredCumulativePoint] = useState<number | null>(null);
 
   useEffect(() => { void loadAccountingDataset(files).then(setDataset); }, [files]);
   useEffect(() => {
@@ -70,35 +71,12 @@ export default function BudgetAnnualPage() {
   const totals = visibleMonths.reduce((sum, month) => ({ budget: sum.budget + month.budget, actual: sum.actual + month.actual, variance: sum.variance + month.variance }), { budget: 0, actual: 0, variance: 0 });
   const availableCategories = report ? report.categories : [];
   const selectedChartCategory = availableCategories.find((category) => category.id === chartCategory);
-  const chartMetrics = selectedChartCategory ? visibleMonths.map((month) => {
-    const index = month.month - 1;
-    const budget = selectedChartCategory.periodized[index] ?? 0;
-    const actual = selectedChartCategory.actual[index] ?? 0;
-    return { ...month, budget, actual, variance: actual - budget };
-  }) : visibleMonths;
-  let cumulativeBudget = 0;
-  let cumulativeActual = 0;
-  const cumulativeMetrics = chartMetrics.map((month) => {
-    cumulativeBudget += month.budget;
-    cumulativeActual += month.actual;
-    return { ...month, cumulativeBudget, cumulativeActual };
-  });
-  const cumulativeValues = cumulativeMetrics.flatMap((month) => [month.cumulativeBudget, month.cumulativeActual, 0]);
-  const cumulativeMin = Math.min(...cumulativeValues);
-  const cumulativeMax = Math.max(...cumulativeValues, cumulativeMin + 1);
-  const cumulativeY = (value: number) => 210 - ((value - cumulativeMin) / (cumulativeMax - cumulativeMin)) * 180;
-  const cumulativeX = (index: number) => cumulativeMetrics.length <= 1 ? 520 : 55 + (index / (cumulativeMetrics.length - 1)) * 935;
-  const cumulativeTicks = Array.from({ length: 5 }, (_, index) => cumulativeMax - ((cumulativeMax - cumulativeMin) * index) / 4);
-  if (cumulativeMin < 0 && cumulativeMax > 0) cumulativeTicks.push(0);
-  const uniqueCumulativeTicks = Array.from(new Set(cumulativeTicks.map((value) => Math.round(value)))).sort((left, right) => right - left);
-  const cumulativeAreaSegments = cumulativeMetrics.slice(1).map((month, index) => {
-    const previous = cumulativeMetrics[index];
-    const previousVariance = previous.cumulativeActual - previous.cumulativeBudget;
-    const variance = month.cumulativeActual - month.cumulativeBudget;
-    return {
-      points: `${cumulativeX(index)},${cumulativeY(previous.cumulativeBudget)} ${cumulativeX(index + 1)},${cumulativeY(month.cumulativeBudget)} ${cumulativeX(index + 1)},${cumulativeY(month.cumulativeActual)} ${cumulativeX(index)},${cumulativeY(previous.cumulativeActual)}`,
-      className: (previousVariance + variance) / 2 >= 0 ? styles.cumulativeFavorableArea : styles.cumulativeUnfavorableArea,
-    };
+  const forecastAccounts = chartCategory === "total" ? undefined : Array.from(new Set(dataset.vouchers.flatMap((voucher) => voucher.transactions.map((transaction) => transaction.account)))).filter((account) => getAccountCategory(account, categories).id === chartCategory);
+  const resultForecast = buildResultForecast(dataset, budget?.year ?? new Date().getFullYear(), undefined, forecastAccounts);
+  let accumulatedBudget = 0;
+  const budgetCurve = (report?.months ?? []).map((month, index) => {
+    accumulatedBudget += selectedChartCategory ? selectedChartCategory.periodized[index] ?? 0 : month.budget;
+    return { month: index + 1, amount: accumulatedBudget };
   });
   const categoryRows = availableCategories.map((category) => {
     const periodized = visibleMonths.reduce((sum, month) => sum + (category.periodized[month.month - 1] ?? 0), 0);
@@ -122,6 +100,7 @@ export default function BudgetAnnualPage() {
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
           <Link className={styles.active} href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</Link>
           <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
           <Link href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</Link>
@@ -143,19 +122,24 @@ export default function BudgetAnnualPage() {
 
         {!budget || !report ? <div className={styles.emptyState}><WalletCards size={32} aria-hidden="true" /><h2>Ingen budget uppladdad</h2><p>Ladda upp den tab-separerade resultatrapporten i Excel-format på sidan Filer.</p></div> : <>
           <section className={styles.kpis} aria-label="Periodiserad budget">
-            <article><span>Periodiserad budget</span><strong className={amountClass(totals.budget)}>{formatThousands(totals.budget)}</strong><small>{periodView === "toDate" ? "Budget fram till senaste transaktion" : "Budget för hela året"}</small></article>
-            <article><span>Utfall</span><strong className={amountClass(totals.actual)}>{formatThousands(totals.actual)}</strong><small>{periodView === "toDate" ? "Faktiskt utfall hittills" : "Faktiskt utfall i vald period"}</small></article>
+            <article><span>Budgeterat resultat</span><strong className={amountClass(totals.budget)}>{formatThousands(totals.budget)}</strong><small>{periodView === "toDate" ? "Planerat resultat t.o.m. senaste bokföringsmånaden" : "Planerat resultat för hela året"}</small></article>
+            <article><span>Faktiskt resultat</span><strong className={amountClass(totals.actual)}>{formatThousands(totals.actual)}</strong><small>Bokförda intäkter minus bokförda kostnader</small></article>
             <article><span>Avvikelse</span><strong className={amountClass(totals.variance)}>{formatThousands(totals.variance)}</strong><small>Utfall minus periodiserad budget</small></article>
             <article><span>Periodisering</span><strong>{periodizationMode === "history" ? "Historik" : "Rak"}</strong><small>{periodizationMode === "history" ? "Historiska månadsandelar" : "En tolftedel per månad"}</small></article>
           </section>
 
           <article className={styles.panel}>
+            <div className={styles.panelHeader}><h2>Resultat och prognos jämfört med budget</h2></div>
+            <p className={styles.chartExplanation}>Här visas intäkter minus kostnader, inte hur mycket ni får spendera. Budget är planen; utfall är det som faktiskt bokförts. Varje punkt summerar från januari. Den heldragna lila linjen slutar vid senaste bokföringsdatum; den streckade fortsätter med prognosen till december.</p>
             <div className={styles.periodizationChartControls}>
               <label className={styles.periodizationChartSelect}><span>Visa diagram för</span><select value={chartCategory} onChange={(event) => setChartCategory(event.target.value)}><option value="total">Totalt</option>{availableCategories.filter((category) => category.budget !== 0 || category.actual.some((value) => value !== 0)).map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}</select></label>
-              <label className={styles.periodizationChartSelect}><span>Visa</span><select value={periodView} onChange={(event) => setPeriodView(event.target.value as PeriodView)}><option value="toDate">Fram till senaste transaktion</option><option value="fullYear">Hela året</option></select></label>
+              <label className={styles.periodizationChartSelect}><span>Period i tabellen och korten</span><select value={periodView} onChange={(event) => setPeriodView(event.target.value as PeriodView)}><option value="toDate">Fram till senaste transaktion</option><option value="fullYear">Hela året</option></select></label>
             </div>
-            <div className={styles.periodizationLegend}><span><i className={styles.periodizationBudgetDot} /> Kumulativ budget</span><span><i className={styles.periodizationActualDot} /> Kumulativt utfall</span><span><i className={styles.periodizationFavorableSwatch} /> Bättre än budget</span><span><i className={styles.periodizationUnfavorableSwatch} /> Sämre än budget</span></div>
-            <div className={styles.cumulativeChart} aria-label="Kumulativ periodiserad budget jämfört med utfall"><svg viewBox="0 0 1000 240" role="img"><line className={styles.cumulativeAxis} x1="55" x2="55" y1="20" y2="210" />{uniqueCumulativeTicks.map((value) => <g key={value}><line className={value === 0 ? styles.cumulativeZeroLine : styles.cumulativeGridLine} x1="55" x2="990" y1={cumulativeY(value)} y2={cumulativeY(value)} /><text className={value === 0 ? styles.cumulativeZeroLabel : styles.cumulativeValueLabel} x="48" y={cumulativeY(value) + 5} textAnchor="end">{formatThousands(value)}</text></g>)}{cumulativeAreaSegments.map((segment, index) => <polygon key={index} className={segment.className} points={segment.points} />)}<polyline className={styles.cumulativeBudgetLine} points={cumulativeMetrics.map((month, index) => `${cumulativeX(index)},${cumulativeY(month.cumulativeBudget)}`).join(" ")} /><polyline className={styles.cumulativeActualLine} points={cumulativeMetrics.map((month, index) => `${cumulativeX(index)},${cumulativeY(month.cumulativeActual)}`).join(" ")} />{cumulativeMetrics.map((month, index) => <g key={month.month} tabIndex={0} onMouseEnter={() => setHoveredCumulativePoint(index)} onMouseLeave={() => setHoveredCumulativePoint(null)} onFocus={() => setHoveredCumulativePoint(index)} onBlur={() => setHoveredCumulativePoint(null)}><circle className={styles.cumulativeBudgetPoint} cx={cumulativeX(index)} cy={cumulativeY(month.cumulativeBudget)} r="5"><title>{`${month.label}: kumulativ budget ${formatThousands(month.cumulativeBudget)}`}</title></circle><circle className={styles.cumulativeActualPoint} cx={cumulativeX(index)} cy={cumulativeY(month.cumulativeActual)} r="5"><title>{`${month.label}: kumulativt utfall ${formatThousands(month.cumulativeActual)}`}</title></circle><text className={styles.cumulativeMonthLabel} x={cumulativeX(index)} y="238" textAnchor="middle">{month.label}</text>{hoveredCumulativePoint === index ? <g className={styles.cumulativeTooltip} transform={`translate(${Math.min(Math.max(cumulativeX(index) - 90, 60), 810)},${Math.max(Math.min(cumulativeY(month.cumulativeBudget), cumulativeY(month.cumulativeActual)) - 68, 6)}`}><rect width="180" height="56" rx="6" /><text x="10" y="17">{month.label}</text><text x="10" y="34">Budget: {formatThousands(month.cumulativeBudget)}</text><text x="10" y="49">Utfall: {formatThousands(month.cumulativeActual)} ({formatThousands(month.cumulativeActual - month.cumulativeBudget)})</text></g> : null}</g>)}</svg></div>
+            <div className={styles.periodizationLegend}><span><i className={styles.periodizationBudgetDot} /> Budgeterat resultat</span><span><i className={styles.periodizationActualDot} /> Faktiskt resultat (utfall)</span><span><i className={styles.resultForecastSwatch} /> Prognostiserat resultat</span><span><i className={styles.periodizationFavorableSwatch} /> Bättre än budget</span><span><i className={styles.periodizationUnfavorableSwatch} /> Sämre än budget</span></div>
+            <p className={styles.chartExplanation}>Lila över blått betyder bättre resultat än planerat: högre intäkter eller lägre kostnader. Därför är ytan grön. Lila under blått ger en röd yta. Kostnader visas som minusbelopp, så en mindre negativ kostnad innebär ett bättre resultat.</p>
+            <p className={styles.chartExplanation}>Budgeten fördelas efter historiska månadsandelar och omfattar hela den sista månaden. Utfallet omfattar bara bokförda transaktioner; skillnaden kan därför också bero på när intäkter och kostnader bokförs.</p>
+            <ResultComparisonChart reference={budgetCurve} referenceLabel="Budgeterat resultat" actual={resultForecast.actualPoints} forecast={resultForecast.forecastPoints} shade />
+            <p className={styles.chartExplanation}>{resultForecast.projectedResult === null ? "Resultatprognos saknas: ladda upp årets och föregående års SIE-underlag." : "Den streckade lila linjen visar prognostiserat resultat för vald kategori eller totalt: bokfört resultat till senaste bokföringsdatum plus föregående års intäkter och kostnader för återstoden av året. Prognosen avser resultat, inte bank och kassa."}</p>
           </article>
 
           <article className={`${styles.panel} ${styles.annualCategoryPanel}`}>

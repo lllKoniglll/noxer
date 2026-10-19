@@ -26,7 +26,7 @@ export function isBudgetFile(fileName: string): boolean {
 export function parseBudgetBuffer(buffer: Uint8Array, fileName: string): BudgetDataset {
   if (!isBudgetFile(fileName)) throw new Error("Budgeten måste vara en .xls-fil i resultatrapportformatet");
 
-  const lines = decodeBudgetText(buffer).split(/\r?\n/);
+  const lines = decodeBudgetText(buffer).split(/\r\n|\r|\n/);
   const organizationName = lines[1]?.split("\t")[0]?.trim() || "Okänd förening";
   const year = lines.map(yearFromText).find((candidate) => candidate !== undefined) ?? yearFromText(fileName) ?? new Date().getFullYear();
   const headerIndex = lines.findIndex((line) => line.split("\t").some((cell) => cell.trim().toLowerCase() === "budget"));

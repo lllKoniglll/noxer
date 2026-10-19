@@ -1,0 +1,14 @@
+[
+  { "id": "net-sales", "label": "Nettoomsättning", "accounts": ["30", "31", "32", "33", "34", "35", "36", "37"] },
+  { "id": "own-work", "label": "Aktiverat arbete för egen räkning", "accounts": ["38"] },
+  { "id": "other-income", "label": "Övriga rörelseintäkter", "accounts": ["39"] },
+  { "id": "materials", "label": "Råvaror och förnödenheter", "accounts": ["40", "41", "42", "43", "44", "45", "46", "47", "49"] },
+  { "id": "other-materials", "label": "Övriga varu- och materialkostnader", "accounts": ["48"] },
+  { "id": "external", "label": "Övriga externa kostnader", "accounts": ["5", "6"] },
+  { "id": "staff", "label": "Personalkostnader", "accounts": ["70", "71", "72", "73", "74", "75", "76"] },
+  { "id": "depreciation", "label": "Avskrivningar", "accounts": ["77", "78"] },
+  { "id": "other-operating", "label": "Övriga rörelsekostnader", "accounts": ["79"] },
+  { "id": "financial", "label": "Finansiella poster", "accounts": ["80", "81", "82", "83", "84"] },
+  { "id": "appropriations", "label": "Bokslutsdispositioner och skatt", "accounts": ["85", "86", "87", "88", "89"] },
+  { "id": "other", "label": "Övrigt", "accounts": [] }
+]

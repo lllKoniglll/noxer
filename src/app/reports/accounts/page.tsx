@@ -64,7 +64,7 @@ function AccountComparisonPageContent() {
   }
 
   if (!files.length) {
-    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
+    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Rapporterna bygger på de filer som laddats upp till arbetsytan.</p></main>;
   }
 
   const yearColumns = years.map((year) => ({ key: String(year), label: String(year), format: "thousands" as const, tone: "result" as const }));
@@ -79,6 +79,7 @@ function AccountComparisonPageContent() {
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</Link>
           <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
           <Link href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</Link>

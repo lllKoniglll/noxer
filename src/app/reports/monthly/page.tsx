@@ -39,7 +39,7 @@ function MonthlyReportPageContent() {
   const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
   const years = getAvailableYears(dataset);
-  const latestYear = years.at(-1) ?? 2026;
+  const latestYear = years.at(-1) ?? new Date().getFullYear();
   const selectedYear = chosenYear && years.includes(chosenYear) ? chosenYear : latestYear;
   const monthlyRows = buildMonthlyReport(dataset, selectedYear, comparisonMode);
   const cutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
@@ -62,7 +62,7 @@ function MonthlyReportPageContent() {
   const actualMonths = monthlyRows.filter((row) => row.income !== 0 || row.costs !== 0).length;
 
   if (!files.length) {
-    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
+    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Rapporterna bygger på de filer som laddats upp till arbetsytan.</p></main>;
   }
 
   return (
@@ -79,6 +79,7 @@ function MonthlyReportPageContent() {
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link href={`/reports/liquidity${comparisonQuery}`}>
             <LineChart size={18} aria-hidden="true" />
             Likviditet

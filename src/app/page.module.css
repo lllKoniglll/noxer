@@ -332,8 +332,36 @@
 .periodizationChartControls { align-items: end; display: flex; flex-wrap: wrap; gap: 18px; }
 .periodizationChartControls .periodizationChartSelect { margin-top: 0; }
 .annualCategoryPanel .categoryChangeChart { margin-top: 0; }
-.periodizationChartSelect select { background: #f9faf8; border: 1px solid var(--line); border-radius: 8px; min-height: 38px; padding: 0 10px; }
-.periodizationBudgetDot { background: var(--accent); }
+.periodizationChartSelect select, .periodizationChartSelect input[type="date"] { background: #f9faf8; border: 1px solid var(--line); border-radius: 8px; min-height: 38px; padding: 0 10px; }
+
+.resultControls { padding: 18px; }
+.resultControls .periodizationChartControls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); align-items: end; }
+.resultControls .periodizationChartSelect { min-width: 0; max-width: none; }
+.resultControls .periodizationChartSelect select,
+.resultControls .periodizationChartSelect input[type="date"] { appearance: none; -webkit-appearance: none; box-sizing: border-box; width: 100%; min-width: 0; height: 40px; min-height: 40px; margin: 0; font: inherit; color: var(--ink); }
+.resultControls .periodizationChartSelect select { padding-right: 32px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 17px, calc(100% - 11px) 17px; background-size: 5px 5px; background-repeat: no-repeat; }
+.cashOpeningMonth { border-right: 1px dashed var(--line); padding-right: 10px; position: relative; }
+.cashOpeningMonth > small { bottom: -20px; color: var(--muted); font-size: .7rem; left: 0; position: absolute; right: 10px; text-align: center; }
+.resultFilters { margin-top: 14px; }
+.resultFilters summary { cursor: pointer; font-weight: 650; }
+.resultFilters > div { display: flex; flex-wrap: wrap; gap: 12px 20px; padding-top: 14px; }
+.resultFilters label { display: flex; align-items: center; gap: 6px; font-size: .85rem; }
+.resultTableScroll { overflow-x: auto; }
+.resultTable { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.resultTable th, .resultTable td { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.resultTable th { text-align: left; }
+.resultTable td, .resultTable thead th:not(:first-child) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.resultTable th:first-child { min-width: 260px; }
+.resultTable thead { color: var(--muted); }
+.resultGroup { font-weight: 700; }
+.resultGroup th, .resultGroup td { border-bottom: 0; padding-top: 6px; padding-bottom: 6px; }
+.resultGroup .accountDetailToggle { font-size: .82rem; }
+.resultBarCell { min-width: 180px; width: 100%; }
+.resultGroup:hover .categoryChangeTrack { background: #e5eee8; }
+.resultTable th.resultAccount { padding-left: 35px; font-weight: 400; }
+.resultSubtotal, .resultTable tfoot { font-weight: 750; border-top: 2px solid var(--line); }
+.periodizationBudgetDot { background: #2866a6; }
+.chartExplanation { color: var(--muted); font-size: .85rem; line-height: 1.5; margin: 12px 0; }
 .periodizationActualDot { background: var(--forecast); }
 .periodizationChart { align-items: end; display: grid; gap: 10px; grid-template-columns: repeat(12, minmax(54px, 1fr)); margin-top: 22px; overflow-x: auto; padding-top: 12px; }
 .periodizationMonth { align-items: center; display: grid; gap: 6px; min-width: 54px; }
@@ -366,9 +394,12 @@
 .cumulativeValueLabel,
 .cumulativeZeroLabel { fill: var(--muted); font-size: 14px; }
 .cumulativeZeroLabel { fill: var(--ink); font-weight: 800; }
-.cumulativeBudgetLine { fill: none; stroke: var(--accent); stroke-width: 4; }
+.cumulativeBudgetLine { fill: none; stroke: #2866a6; stroke-width: 4; stroke-dasharray: 8 5; }
 .cumulativeActualLine { fill: none; stroke: var(--forecast); stroke-width: 4; }
-.cumulativeBudgetPoint { fill: var(--accent); }
+.cumulativeForecastLine { fill: none; stroke: var(--forecast); stroke-width: 4; stroke-dasharray: 8 5; }
+.cumulativeForecastPoint { fill: var(--panel); stroke: var(--forecast); stroke-width: 2; }
+.periodizationLegend i.resultForecastSwatch { background: transparent; border-radius: 0; border-top: 3px dashed var(--forecast); height: 0; width: 22px; }
+.cumulativeBudgetPoint { fill: #2866a6; }
 .cumulativeActualPoint { fill: var(--forecast); }
 .cumulativeFavorableArea { fill: rgba(24, 132, 92, .2); }
 .cumulativeUnfavorableArea { fill: rgba(202, 71, 50, .2); }

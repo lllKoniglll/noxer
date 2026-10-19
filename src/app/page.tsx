@@ -62,6 +62,7 @@ export default function OverviewPage() {
         <nav className={styles.nav}>
           <Link className={styles.active} href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link href="/reports/liquidity"><LineChart size={18} aria-hidden="true" />Likviditet</Link>
           <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
           <Link href="/reports/monthly"><BarChart3 size={18} aria-hidden="true" />Månadsöversikt</Link>
@@ -81,8 +82,8 @@ export default function OverviewPage() {
         {!files.length ? <div className={styles.emptyState}><BarChart3 size={32} aria-hidden="true" /><h2>Översikten fylls när du laddar upp underlag</h2><p>Ladda upp SIE4-filer och gärna resultatrapporten med budget på sidan Filer.</p></div> : (
           <>
             <section className={styles.dashboardHero} aria-label="Viktigaste ekonomiska nyckeltalen">
-              <article className={styles.dashboardBudgetCard}><span>Utfall mot budget</span><strong className={resultClass(budgetTotals?.variance ?? 0)}>{budgetTotals ? formatThousands(budgetTotals.variance) : "saknas"}</strong><small>{budgetTotals ? `Utfall ${formatThousands(budgetTotals.actual)} mot budget ${formatThousands(budgetTotals.budget)}` : "Ladda upp en .xls-budget på sidan Filer"}</small><Link href="/reports/budget">Visa budgetuppföljning</Link></article>
-              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Prognostiserat saldo 31 december minus saldo 1 januari</small><Link href="/reports/liquidity">Visa likviditetsprognos</Link></article>
+              <article className={styles.dashboardBudgetCard}><span>Utfall mot budget</span><strong className={resultClass(budgetTotals?.variance ?? 0)}>{budgetTotals ? formatThousands(budgetTotals.variance) : "saknas"}</strong><small>{budgetTotals ? "Bokfört resultat minus periodiserad budget för samma bokföringsmånader" : "Ladda upp en .xls-budget på sidan Filer"}</small><Link href="/reports/budget">Visa budgetuppföljning</Link></article>
+              <article className={styles.dashboardResultCard}><span>Prognostiserat resultat</span><strong className={resultClass(projectedResult)}>{formatThousands(projectedResult)}</strong><small>Beräknat saldo vid årsslut minus ingående saldo</small><Link href="/reports/liquidity">Visa likviditetsprognos</Link></article>
             </section>
 
             <section className={styles.kpis} aria-label="Övriga nyckeltal">

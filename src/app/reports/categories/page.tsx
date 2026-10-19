@@ -48,7 +48,7 @@ function CategoriesReportPageContent() {
   const comparisonMode = parseComparisonMode(params.get("comparison") ?? undefined);
   const comparisonQuery = `?comparison=${comparisonMode}`;
   const years = getAvailableYears(dataset);
-  const selectedYear = years.at(-1) ?? 2026;
+  const selectedYear = years.at(-1) ?? new Date().getFullYear();
   const categories = buildCategorySummary(dataset, selectedYear, comparisonMode, categoryConfig);
   const cutoff = comparisonCutoffDate(dataset, selectedYear, comparisonMode);
   const comparisonLabel = comparisonModeLabel(comparisonMode);
@@ -62,7 +62,7 @@ function CategoriesReportPageContent() {
   const totalComparison = comparisonResult(totalCurrent, totalPrevious);
 
   if (!files.length) {
-    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Uppladdade filer sparas lokalt i den här webbläsaren.</p></main>;
+    return <main style={{ padding: 32 }}><h1>Ladda upp en SIE4-fil för att börja</h1><p>Rapporterna bygger på de filer som laddats upp till arbetsytan.</p></main>;
   }
 
   return (
@@ -78,6 +78,7 @@ function CategoriesReportPageContent() {
         <nav className={styles.nav}>
           <Link href="/"><BarChart3 size={18} aria-hidden="true" />Översikt</Link>
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
+          <Link href="/reports/result"><BarChart3 size={18} aria-hidden="true" />Resultatrapport</Link>
           <Link href={`/reports/liquidity${comparisonQuery}`}>
             <LineChart size={18} aria-hidden="true" />
             Likviditet
