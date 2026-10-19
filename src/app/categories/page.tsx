@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Bot, CalendarRange, FileUp, Landmark, LineChart, Plus, Settings2, Trash2, WalletCards } from "lucide-react";
+import { BarChart3, Bot, CalendarRange, FileDown, FileUp, Landmark, LineChart, Plus, Settings2, Trash2, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { LogoutLink } from "@/app/logout-link";
 import { useUploads } from "@/app/upload-context";
@@ -125,6 +125,37 @@ export default function CategoryEditorPage() {
     }).finally(() => setSaving(false));
   }
 
+  async function importCategoryFile(file: File | undefined) {
+    if (!file) return;
+    setSaving(true);
+    try {
+      const payload: unknown = JSON.parse(await file.text());
+      const imported = Array.isArray(payload) ? payload : payload && typeof payload === "object" && "categories" in payload ? payload.categories : null;
+      if (!Array.isArray(imported)) throw new Error("Filen måste innehålla en categories-lista.");
+      await saveCategories(imported as AccountCategory[]);
+      dirtyRef.current = false;
+      setDraft(imported as AccountCategory[]);
+      setMessage("Kategorifilen laddades upp och sparades.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kategorifilen kunde inte läsas.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteCategoryFile() {
+    if (!window.confirm("Ta bort kategorifilen och återställ ursprungskategorierna?")) return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/files/categories.json", { method: "DELETE" });
+      if (!response.ok) throw new Error("Kategorifilen kunde inte tas bort.");
+      window.location.reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Kategorifilen kunde inte tas bort.");
+      setSaving(false);
+    }
+  }
+
   function normalizedCategories(source: AccountCategory[]): AccountCategory[] {
     const editable = source.filter((category) => category.id !== "other");
     const assignedToEditable = (account: string) => editable.some((category) => category.accounts.some((rule) => account === rule || account.startsWith(rule)));
@@ -157,7 +188,6 @@ export default function CategoryEditorPage() {
           <Link href="/reports/categories"><CalendarRange size={18} aria-hidden="true" />Kategorier</Link>
           <Link href="/reports/accounts"><BarChart3 size={18} aria-hidden="true" />Kontojämförelse</Link>
           <Link href="/reports/budget"><WalletCards size={18} aria-hidden="true" />Budget</Link>
-          <Link href="/reports/budget/annual"><WalletCards size={18} aria-hidden="true" />Budget över året</Link>
           <Link href="/chat"><Bot size={18} aria-hidden="true" />Chat</Link>
           <Link href="/files"><FileUp size={18} aria-hidden="true" />Filer</Link>
           <Link className={styles.active} href="/categories"><Settings2 size={18} aria-hidden="true" />Redigera kategorier</Link>
@@ -173,6 +203,11 @@ export default function CategoryEditorPage() {
 
         {message ? <p className={styles.categoryMessage} role="status">{message}</p> : null}
         <p className={styles.copy}>Kollapsade kategorier visar namn, antal konton och totalen från senaste årets bokföring. Kontoändringar sparas när du klickar. Ändra ett kategorinamn och klicka sedan på Spara kategori.</p>
+
+        <section className={styles.categoryFileCard} aria-label="Kategori-fil">
+          <div><FileDown size={22} aria-hidden="true" /><span><strong>categories.json</strong><small>Den sparade kategorifilen för den här workspacen</small></span></div>
+          <div className={styles.categoryFileActions}><a className={styles.secondaryButton} href="/api/files/categories.json" download="categories.json"><FileDown size={16} aria-hidden="true" />Ladda ner</a><label className={styles.secondaryButton}><FileUp size={16} aria-hidden="true" />Ladda upp<input type="file" accept=".json,application/json" onChange={(event) => { void importCategoryFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} /></label><button className={styles.dangerButton} onClick={() => { void deleteCategoryFile(); }} type="button" disabled={saving}><Trash2 size={16} aria-hidden="true" />Ta bort</button></div>
+        </section>
 
         <section className={styles.categoryEditorList} aria-label="Kategorier">
           {draft.map((category) => {

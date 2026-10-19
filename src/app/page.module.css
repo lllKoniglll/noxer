@@ -149,6 +149,12 @@
 .secondaryButton { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); cursor: pointer; padding: 10px 12px; }
 .secondaryButton { align-items: center; display: inline-flex; gap: 7px; }
 .categoryMessage { background: #e8f4ec; border: 1px solid #b8d8c2; border-radius: 8px; color: #205c3b; margin: 20px 0 0; padding: 12px 14px; }
+.categoryFileCard { align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; display: flex; justify-content: space-between; gap: 16px; margin-top: 18px; max-width: 900px; padding: 14px 18px; }
+.categoryFileCard > div { align-items: center; display: flex; gap: 10px; }
+.categoryFileCard > div > span { display: grid; gap: 3px; }
+.categoryFileCard small { color: var(--muted); }
+.categoryFileActions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.categoryFileActions input { display: none; }
 .categoryEditorList { display: grid; gap: 10px; margin-top: 22px; max-width: 900px; }
 .categoryEditorCard { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
 .categoryEditorHeader { align-items: center; background: transparent; border: 0; color: var(--ink); cursor: pointer; display: flex; font: inherit; justify-content: space-between; padding: 16px 18px; text-align: left; width: 100%; }
